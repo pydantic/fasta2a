@@ -55,6 +55,7 @@ logfire = ["logfire>=2.3"]
 [dependency-groups]
 dev = [
     "asgi-lifespan",
+    "coverage",
     "httpx",
     "inline-snapshot",
     "pytest",
