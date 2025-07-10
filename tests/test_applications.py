@@ -29,8 +29,8 @@ async def test_agent_card():
         assert response.status_code == 200
         assert response.json() == snapshot(
             {
-                'name': 'Agent',
-                'description': 'FastA2A Agent',
+                'name': 'My Agent',
+                'description': 'An AI agent exposed as an A2A agent.',
                 'url': 'http://localhost:8000',
                 'version': '1.0.0',
                 'protocolVersion': '0.2.5',
