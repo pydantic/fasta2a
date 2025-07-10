@@ -47,6 +47,7 @@ dependencies = [
     "starlette>0.29.0",
     "pydantic>=2.10",
     "opentelemetry-api>=1.28.0",
+    "eval_type_backport>=0.2.2; python_version <= '3.9'",
 ]
 
 [project.optional-dependencies]
@@ -55,10 +56,12 @@ logfire = ["logfire>=2.3"]
 [dependency-groups]
 dev = [
     "asgi-lifespan",
+    "coverage",
     "httpx",
     "inline-snapshot",
     "pytest",
     "ruff",
+    "pyright",
 ]
 docs = [
     "mkdocs-material[imaging]",
@@ -68,10 +71,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://ai.pydantic.dev/a2a/fasta2a"
+Homepage = "https://pydantic.github.io/fasta2a"
 Source = "https://github.com/pydantic/fasta2a"
-Documentation = "https://ai.pydantic.dev/a2a"
-Changelog = "https://github.com/pydantic/pydantic-ai/releases"
+Documentation = "https://pydantic.github.io/fasta2a"
+Changelog = "https://github.com/pydantic/fasta2a/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fasta2a"]
@@ -79,3 +82,41 @@ packages = ["fasta2a"]
 [tool.uv]
 required-version = ">=0.7.2"
 default-groups = ["dev", "docs"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+extend-select = [
+    "Q",
+    "RUF100",
+    "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert/
+    "C90",
+    "UP",
+    "I",
+    "TID251",
+]
+flake8-quotes = { inline-quotes = "single", multiline-quotes = "double" }
+isort = { combine-as-imports = true, known-first-party = ["fasta2a"] }
+mccabe = { max-complexity = 15 }
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.TypedDict".msg = "Use typing_extensions.TypedDict instead."
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnnecessaryIsInstance = false
+reportUnnecessaryTypeIgnoreComment = true
+reportMissingModuleSource = false
+include = [
+    "fasta2a",
+    "tests",
+]

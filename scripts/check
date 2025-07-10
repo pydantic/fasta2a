@@ -6,6 +6,6 @@ SOURCE_FILES="fasta2a tests"
 
 uvx ruff format --check --diff $SOURCE_FILES
 uvx ruff check $SOURCE_FILES
-uv run mypy $SOURCE_FILES
+uv run pyright
 uvx check-sdist
 uv lock
