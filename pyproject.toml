@@ -60,6 +60,12 @@ dev = [
     "pytest",
     "ruff",
 ]
+docs = [
+    "mkdocs-material[imaging]",
+    "mkdocstrings-python",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-llmstxt>=0.2.0",
+]
 
 [project.urls]
 Homepage = "https://ai.pydantic.dev/a2a/fasta2a"
@@ -69,3 +75,7 @@ Changelog = "https://github.com/pydantic/pydantic-ai/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fasta2a"]
+
+[tool.uv]
+required-version = ">=0.7.2"
+default-groups = ["dev", "docs"]
