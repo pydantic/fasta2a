@@ -19,7 +19,7 @@ Before reporting new issues, take a look at [existing issues](https://github.com
 
 ### Pre-Commit Checks before Sending in your Pull Requests
 
-Clone for fork of the [FastA2A repo](https://github.com/pydantic/fasta2a/fork) and cd into that directory
+Clone a fork of the [FastA2A repo](https://github.com/pydantic/fasta2a/fork) and cd into that directory
 
 ````bash
 
@@ -32,6 +32,13 @@ cd fasta2a
 Install uv (version 0.4.30 or later)
 
 ### Running Lints and Tests etc
+
+Run the following commands before checking in your changes to git. 
+
+Your PR may not be accepted if it fails these checks.
+
+It is usually a good idea to keep the branch in your fork up-to-date with the upstream branch if you are planning 
+to work  on your changes over an extended period of time.
 
 ````bash
 
