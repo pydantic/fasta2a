@@ -11,6 +11,8 @@ You can contribute to the project in the following areas:
 - reporting issues
 - making suggestions for feature requestions and improvements
 - starting and contributing to discussions
+- reviewing pull requests
+- responding to issues and discussions
 - creating examples and tutorials for the [FastA2A](https://ai.pydantic.dev/a2a/) project.
 
 Before reporting new issues, take a look at [existing issues](https://github.com/pydantic/fasta2a/issues) to ensure that you are not creating duplicates.
