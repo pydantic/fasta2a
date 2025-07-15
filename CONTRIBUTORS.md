@@ -9,7 +9,7 @@ You can contribute to the project in the following areas:
 - python code updates (adding functionality, fixing bugs, adding code documentation etc.)
 - writing new unit tests, fixing existing unit tests
 - reporting issues
-- making suggestions for feature requestions and improvements
+- making suggestions for feature requests and improvements
 - starting and contributing to discussions
 - reviewing pull requests
 - responding to issues and discussions
@@ -21,13 +21,13 @@ Before reporting new issues, take a look at [existing issues](https://github.com
 
 Clone a fork of the [FastA2A repo](https://github.com/pydantic/fasta2a/fork) and cd into that directory
 
-````bash
+```bash
 
 git clone git@github.com:<yourUsername>/fasta2a.git
 
 cd fasta2a 
 
-````
+```
 
 Install uv (version 0.4.30 or later)
 
@@ -38,9 +38,9 @@ Run the following commands before checking in your changes to git.
 Your PR may not be accepted if it fails these checks.
 
 It is usually a good idea to keep the branch in your fork up-to-date with the upstream branch if you are planning 
-to work  on your changes over an extended period of time.
+to work on your changes over an extended period of time.
 
-````bash
+```bash
 
 # Run linters
 uv run scripts/check
@@ -48,7 +48,7 @@ uv run scripts/check
 # Run unit tests
 uv run scripts/test
 
-````
+```
 
 ### Additional Questions
 
