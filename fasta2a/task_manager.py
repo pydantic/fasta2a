@@ -79,6 +79,7 @@ from .schema import (
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
     StreamMessageRequest,
+    StreamMessageResponse,
     TaskNotFoundError,
     TaskSendParams,
 )
@@ -155,7 +156,7 @@ class TaskManager:
             )
         return CancelTaskResponse(jsonrpc='2.0', id=request['id'], result=task)
 
-    async def stream_message(self, request: StreamMessageRequest) -> None:
+    async def stream_message(self, request: StreamMessageRequest) -> StreamMessageResponse:
         """Stream messages using Server-Sent Events."""
         raise NotImplementedError('message/stream method is not implemented yet.')
 

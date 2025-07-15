@@ -696,6 +696,11 @@ SendMessageResponse = JSONRPCResponse[Union[Task, Message], JSONRPCError[Any, An
 StreamMessageRequest = JSONRPCRequest[Literal['message/stream'], MessageSendParams]
 """A JSON RPC request to stream a message."""
 
+StreamMessageResponse = JSONRPCResponse[
+    Union[Task, Message, TaskStatusUpdateEvent, TaskArtifactUpdateEvent], JSONRPCError[Any, Any]
+]
+"""A JSON RPC response to a StreamMessageRequest."""
+
 GetTaskRequest = JSONRPCRequest[Literal['tasks/get'], TaskQueryParams]
 """A JSON RPC request to get a task."""
 
@@ -751,6 +756,7 @@ A2ARequest = Annotated[
 
 A2AResponse: TypeAlias = Union[
     SendMessageResponse,
+    StreamMessageResponse,
     GetTaskResponse,
     CancelTaskResponse,
     SetTaskPushNotificationResponse,
@@ -764,3 +770,4 @@ a2a_response_ta: TypeAdapter[A2AResponse] = TypeAdapter(A2AResponse)
 send_message_request_ta: TypeAdapter[SendMessageRequest] = TypeAdapter(SendMessageRequest)
 send_message_response_ta: TypeAdapter[SendMessageResponse] = TypeAdapter(SendMessageResponse)
 stream_message_request_ta: TypeAdapter[StreamMessageRequest] = TypeAdapter(StreamMessageRequest)
+stream_message_response_ta: TypeAdapter[StreamMessageResponse] = TypeAdapter(StreamMessageResponse)
