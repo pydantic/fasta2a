@@ -64,6 +64,7 @@ class AgentCard(TypedDict):
     """Supported mime types for output data."""
 
     skills: list[Skill]
+    """The set of skills, or distinct capabilities, that the agent can perform."""
 
 
 agent_card_ta = pydantic.TypeAdapter(AgentCard)
@@ -73,7 +74,10 @@ class AgentProvider(TypedDict):
     """The service provider of the agent."""
 
     organization: str
+    """The name of the agent provider's organization."""
+
     url: str
+    """A URL for the agent provider's website or relevant documentation."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -95,10 +99,14 @@ class HttpSecurityScheme(TypedDict):
     """HTTP security scheme."""
 
     type: Literal['http']
+    """The type of the security scheme. Must be 'http'."""
+
     scheme: str
     """The name of the HTTP Authorization scheme."""
+
     bearer_format: NotRequired[str]
     """A hint to the client to identify how the bearer token is formatted."""
+
     description: NotRequired[str]
     """Description of this security scheme."""
 
@@ -108,10 +116,14 @@ class ApiKeySecurityScheme(TypedDict):
     """API Key security scheme."""
 
     type: Literal['apiKey']
+    """The type of the security scheme. Must be 'apiKey'."""
+
     name: str
     """The name of the header, query or cookie parameter to be used."""
+
     in_: Literal['query', 'header', 'cookie']
     """The location of the API key."""
+
     description: NotRequired[str]
     """Description of this security scheme."""
 
@@ -121,8 +133,11 @@ class OAuth2SecurityScheme(TypedDict):
     """OAuth2 security scheme."""
 
     type: Literal['oauth2']
+    """The type of the security scheme. Must be 'oauth2'."""
+
     flows: dict[str, Any]
     """An object containing configuration information for the flow types supported."""
+
     description: NotRequired[str]
     """Description of this security scheme."""
 
@@ -132,8 +147,11 @@ class OpenIdConnectSecurityScheme(TypedDict):
     """OpenID Connect security scheme."""
 
     type: Literal['openIdConnect']
+    """The type of the security scheme. Must be 'openIdConnect'."""
+
     open_id_connect_url: str
     """OpenId Connect URL to discover OAuth2 configuration values."""
+
     description: NotRequired[str]
     """Description of this security scheme."""
 
@@ -252,7 +270,7 @@ class PushNotificationConfig(TypedDict):
     """Configuration for push notifications.
 
     A2A supports a secure notification mechanism whereby an agent can notify a client of an update
-    outside of a connected session via a PushNotificationService. Within and across enterprises,
+    outside a connected session via a PushNotificationService. Within and across enterprises,
     it is critical that the agent verifies the identity of the notification service, authenticates
     itself with the service, and presents an identifier that ties the notification to the executing
     Task.
@@ -261,7 +279,7 @@ class PushNotificationConfig(TypedDict):
     is not guaranteed (or even expected) to be the client directly. This PushNotificationService is
     responsible for authenticating and authorizing the agent and for proxying the verified notification
     to the appropriate endpoint (which could be anything from a pub/sub queue, to an email inbox or
-    other service, etc).
+    other service, etc.).
 
     For contrived scenarios with isolated client-agent pairs (e.g. local service mesh in a contained
     VPC, etc.) or isolated environments without enterprise security concerns, the client may choose to
@@ -508,7 +526,10 @@ class TaskIdParams(TypedDict):
     """Parameters for a task id."""
 
     id: str
+    """The unique identifier for the task."""
+
     metadata: NotRequired[dict[str, Any]]
+    """Optional metadata associated with the request."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -635,8 +656,13 @@ class JSONRPCError(TypedDict, Generic[CodeT, MessageT]):
     """A JSON RPC error."""
 
     code: CodeT
+    """A number that indicates the error type that occurred."""
+
     message: MessageT
+    """A string providing a short description of the error."""
+
     data: NotRequired[Any]
+    """A primitive or structured value containing additional information about the error."""
 
 
 ResultT = TypeVar('ResultT')
