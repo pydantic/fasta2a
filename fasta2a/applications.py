@@ -112,7 +112,7 @@ class FastA2A(Starlette):
 
         Although the specification allows freedom of choice and implementation, I'm pretty sure about some decisions.
 
-        1. The server will always either send a "submitted" or a "failed" on `tasks/send`.
+        1. The server will always either send a "submitted" or a "failed" on `message/send`.
             Never a "completed" on the first message.
         2. There are three possible ends for the task:
             2.1. The task was "completed" successfully.
