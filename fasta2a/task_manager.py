@@ -60,12 +60,14 @@ The flow:
 
 from __future__ import annotations as _annotations
 
+import asyncio
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import Any
 
-from .broker import Broker
+from .broker import Broker, StreamEvent
 from .schema import (
     CancelTaskRequest,
     CancelTaskResponse,
@@ -79,7 +81,6 @@ from .schema import (
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
     StreamMessageRequest,
-    StreamMessageResponse,
     TaskNotFoundError,
     TaskSendParams,
 )
@@ -156,9 +157,40 @@ class TaskManager:
             )
         return CancelTaskResponse(jsonrpc='2.0', id=request['id'], result=task)
 
-    async def stream_message(self, request: StreamMessageRequest) -> StreamMessageResponse:
-        """Stream messages using Server-Sent Events."""
-        raise NotImplementedError('message/stream method is not implemented yet.')
+    async def stream_message(self, request: StreamMessageRequest) -> AsyncGenerator[StreamEvent, None]:
+        """Handle a streaming message request.
+
+        This method:
+        1. Creates and submits a new task
+        2. Yields the initial task object
+        3. Subscribes to the broker's event stream
+        4. Starts task execution asynchronously
+        5. Streams all events until completion
+        """
+        # Extract parameters
+        params = request['params']
+        message = params['message']
+        context_id = message.get('context_id', str(uuid.uuid4()))
+
+        # Create and submit the task
+        task = await self.storage.submit_task(context_id, message)
+
+        # Yield the initial task
+        yield task
+
+        # Prepare broker params
+        broker_params: TaskSendParams = {'id': task['id'], 'context_id': context_id, 'message': message}
+        config = params.get('configuration', {})
+        history_length = config.get('history_length')
+        if history_length is not None:
+            broker_params['history_length'] = history_length
+
+        # Start task execution in background
+        asyncio.create_task(self.broker.run_task(broker_params))
+
+        # Stream events from broker
+        async for event in self.broker.subscribe_to_stream(task['id']):
+            yield event
 
     async def set_task_push_notification(
         self, request: SetTaskPushNotificationRequest

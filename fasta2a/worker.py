@@ -14,7 +14,12 @@ from .storage import ContextT, Storage
 
 if TYPE_CHECKING:
     from .broker import Broker, TaskOperation
-    from .schema import Artifact, Message, TaskIdParams, TaskSendParams
+    from .schema import (
+        Artifact,
+        Message,
+        TaskIdParams,
+        TaskSendParams,
+    )
 
 tracer = get_tracer(__name__)
 
