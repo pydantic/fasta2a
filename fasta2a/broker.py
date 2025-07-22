@@ -4,16 +4,20 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 import anyio
+from anyio.streams.memory import MemoryObjectSendStream
 from opentelemetry.trace import Span, get_current_span, get_tracer
 from pydantic import Discriminator
 from typing_extensions import Self, TypedDict
 
-from .schema import TaskIdParams, TaskSendParams
+from .schema import Message, Task, TaskArtifactUpdateEvent, TaskIdParams, TaskSendParams, TaskStatusUpdateEvent
 
 tracer = get_tracer(__name__)
+
+StreamEvent = Union[Task, Message, TaskStatusUpdateEvent, TaskArtifactUpdateEvent]
+"""Type alias for all events that can be streamed."""
 
 
 @dataclass
@@ -30,12 +34,32 @@ class Broker(ABC):
     @abstractmethod
     async def run_task(self, params: TaskSendParams) -> None:
         """Send a task to be executed by the worker."""
-        raise NotImplementedError('send_run_task is not implemented yet.')
+        ...
 
     @abstractmethod
     async def cancel_task(self, params: TaskIdParams) -> None:
         """Cancel a task."""
-        raise NotImplementedError('send_cancel_task is not implemented yet.')
+        ...
+
+    @abstractmethod
+    async def send_stream_event(self, task_id: str, event: StreamEvent) -> None:
+        """Send a streaming event from worker to subscribers.
+
+        This is used by workers to publish status updates, messages, and artifacts
+        during task execution. Events are forwarded to all active subscribers of
+        the given task_id.
+        """
+        ...
+
+    @abstractmethod
+    def subscribe_to_stream(self, task_id: str) -> AsyncIterator[StreamEvent]:
+        """Subscribe to streaming events for a specific task.
+
+        Returns an async iterator that yields events published by workers for the
+        given task_id. The iterator completes when a TaskStatusUpdateEvent with
+        final=True is received or the subscription is cancelled.
+        """
+        ...
 
     @abstractmethod
     async def __aenter__(self) -> Self: ...
@@ -73,6 +97,10 @@ TaskOperation = Annotated['_RunTask | _CancelTask', Discriminator('operation')]
 class InMemoryBroker(Broker):
     """A broker that schedules tasks in memory."""
 
+    def __init__(self):
+        self._event_subscribers: dict[str, list[MemoryObjectSendStream[StreamEvent]]] = {}
+        self._subscriber_lock: anyio.Lock | None = None
+
     async def __aenter__(self):
         self.aexit_stack = AsyncExitStack()
         await self.aexit_stack.__aenter__()
@@ -80,6 +108,8 @@ class InMemoryBroker(Broker):
         self._write_stream, self._read_stream = anyio.create_memory_object_stream[TaskOperation]()
         await self.aexit_stack.enter_async_context(self._read_stream)
         await self.aexit_stack.enter_async_context(self._write_stream)
+
+        self._subscriber_lock = anyio.Lock()
 
         return self
 
@@ -96,3 +126,65 @@ class InMemoryBroker(Broker):
         """Receive task operations from the broker."""
         async for task_operation in self._read_stream:
             yield task_operation
+
+    async def send_stream_event(self, task_id: str, event: StreamEvent) -> None:
+        """Send a streaming event from worker to subscribers."""
+        assert self._subscriber_lock is not None, 'Broker not initialized'
+
+        async with self._subscriber_lock:
+            subscribers = self._event_subscribers.get(task_id, [])
+            if not subscribers:
+                return
+
+            # Send event to all subscribers, removing closed streams
+            active_subscribers: list[MemoryObjectSendStream[StreamEvent]] = []
+            for stream in subscribers:
+                try:
+                    await stream.send(event)
+                    active_subscribers.append(stream)
+                except (anyio.ClosedResourceError, anyio.BrokenResourceError):
+                    # Subscriber disconnected, remove from list
+                    pass
+
+            # Update subscriber list with only active ones
+            if active_subscribers:
+                self._event_subscribers[task_id] = active_subscribers
+            else:
+                # No active subscribers left, clean up
+                del self._event_subscribers[task_id]
+
+    async def subscribe_to_stream(self, task_id: str) -> AsyncIterator[StreamEvent]:
+        """Subscribe to streaming events for a specific task."""
+        assert self._subscriber_lock is not None, 'Broker not initialized'
+
+        # Create a new stream for this subscriber
+        send_stream, receive_stream = anyio.create_memory_object_stream[StreamEvent](max_buffer_size=100)
+
+        # Register the subscriber
+        async with self._subscriber_lock:
+            if task_id not in self._event_subscribers:
+                self._event_subscribers[task_id] = []
+            self._event_subscribers[task_id].append(send_stream)
+
+        try:
+            async with receive_stream:
+                async for event in receive_stream:
+                    yield event
+
+                    # Check if this is a final status update
+                    if isinstance(event, dict) and event.get('kind') == 'status-update' and event.get('final', False):
+                        break
+        finally:
+            # Clean up subscription on exit
+            async with self._subscriber_lock:
+                if task_id in self._event_subscribers:
+                    try:
+                        self._event_subscribers[task_id].remove(send_stream)
+                        if not self._event_subscribers[task_id]:
+                            del self._event_subscribers[task_id]
+                    except ValueError:
+                        # Already removed
+                        pass
+
+            # Close the send stream
+            await send_stream.aclose()
