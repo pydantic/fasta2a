@@ -48,6 +48,7 @@ dependencies = [
     "pydantic>=2.10",
     "opentelemetry-api>=1.28.0",
     "eval_type_backport>=0.2.2; python_version <= '3.9'",
+    "sse-starlette>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -58,8 +59,10 @@ dev = [
     "asgi-lifespan",
     "coverage",
     "httpx",
+    "httpx-sse",
     "inline-snapshot",
     "pytest",
+    "pytest-asyncio",
     "ruff",
     "pyright",
 ]
@@ -119,4 +122,25 @@ reportMissingModuleSource = false
 include = [
     "fasta2a",
     "tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["fasta2a"]
+omit = ["fasta2a/static/*"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+precision = 2
+exclude_lines = [
+    # Standard marker for code that's not covered
+    'pragma: no cover',
+    # Don't complain about abstract methods and ellipsis
+    '@abstractmethod',
+    '^\s*\.\.\.\s*$',
+    # Don't complain about TYPE_CHECKING blocks
+    'if TYPE_CHECKING:',
+    # Don't complain about NotImplementedError
+    'raise NotImplementedError',
 ]
