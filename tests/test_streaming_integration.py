@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -17,6 +17,81 @@ from fasta2a import FastA2A, Worker
 from fasta2a.broker import InMemoryBroker
 from fasta2a.schema import Artifact, Message, TaskIdParams, TaskSendParams
 from fasta2a.storage import InMemoryStorage
+
+
+def make_stream_request(
+    text: str, request_id: str | int | None = 'test-req', message_id: str = 'test-msg'
+) -> dict[str, Any]:
+    """Create a JSON-RPC streaming request with defaults."""
+    return {
+        'jsonrpc': '2.0',
+        'id': request_id,
+        'method': 'message/stream',
+        'params': {
+            'message': {
+                'role': 'user',
+                'parts': [{'kind': 'text', 'text': text}],
+                'messageId': message_id,
+                'kind': 'message',
+            }
+        },
+    }
+
+
+def make_send_request(
+    text: str, request_id: str | int | None = 'test-req', message_id: str = 'test-msg'
+) -> dict[str, Any]:
+    """Create a JSON-RPC send request with defaults."""
+    return {
+        'jsonrpc': '2.0',
+        'id': request_id,
+        'method': 'message/send',
+        'params': {
+            'message': {
+                'role': 'user',
+                'parts': [{'kind': 'text', 'text': text}],
+                'messageId': message_id,
+                'kind': 'message',
+            }
+        },
+    }
+
+
+def make_get_task_request(task_id: str, request_id: str | int | None = 'test-req') -> dict[str, Any]:
+    """Create a JSON-RPC get task request with defaults."""
+    return {'jsonrpc': '2.0', 'id': request_id, 'method': 'tasks/get', 'params': {'id': task_id}}
+
+
+async def collect_sse_events(
+    client: httpx.AsyncClient,
+    request_data: dict[str, Any],
+    stop_condition: Callable[[dict[str, Any]], bool] | None = None,
+) -> list[dict[str, Any]]:
+    """Collect all SSE events from a streaming request."""
+    events: list[dict[str, Any]] = []
+    async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
+        async for sse in event_source.aiter_sse():
+            event_data = json.loads(sse.data)
+            events.append(event_data)
+            if stop_condition and stop_condition(event_data):
+                break
+    return events
+
+
+def get_status_updates(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract status update events."""
+    return [e for e in events if e.get('result', {}).get('kind') == 'status-update']
+
+
+def get_artifact_updates(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract artifact update events."""
+    return [e for e in events if e.get('result', {}).get('kind') == 'artifact-update']
+
+
+def get_tasks(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Extract task events."""
+    return [e for e in events if e.get('result', {}).get('kind') == 'task']
+
 
 Context = list[Message]
 """The shape of the context you store in the storage."""
@@ -76,9 +151,6 @@ class StreamingWorker(Worker[Context]):
                 },
             )
 
-            # Small delay to simulate processing
-            await asyncio.sleep(0.05)
-
         # Store the complete artifact
         complete_artifact: Artifact = {
             'artifact_id': 'result-1',
@@ -111,7 +183,7 @@ class StreamingWorker(Worker[Context]):
 
 
 @pytest_asyncio.fixture(scope='function')
-async def streaming_app():
+async def streaming_app() -> FastA2A:
     """Create a FastA2A app with streaming enabled and a streaming worker."""
     storage = InMemoryStorage()
     broker = InMemoryBroker()
@@ -137,35 +209,15 @@ async def streaming_app():
 
 
 @pytest.mark.asyncio
-async def test_streaming_endpoint_basic(streaming_app):
+async def test_streaming_endpoint_basic(streaming_app: FastA2A) -> None:
     """Test basic streaming functionality."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=streaming_app), base_url='http://test'
         ) as client:
             # Send a streaming request
-            request_data = {
-                'jsonrpc': '2.0',
-                'id': 'test-1',
-                'method': 'message/stream',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': 'Test streaming'}],
-                        'messageId': 'msg-1',
-                        'kind': 'message',
-                    }
-                },
-            }
-
-            events_received = []
-
-            # Make streaming request using httpx-sse
-            async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
-                # Collect all events
-                async for sse in event_source.aiter_sse():
-                    event_data = json.loads(sse.data)
-                    events_received.append(event_data)
+            request_data = make_stream_request('Test streaming', 'test-1', 'msg-1')
+            events_received = await collect_sse_events(client, request_data)
 
             # Verify we received events
             assert len(events_received) > 0
@@ -179,17 +231,15 @@ async def test_streaming_endpoint_basic(streaming_app):
             assert first_event['result']['status']['state'] == 'submitted'
 
             # Should have status updates
-            status_updates = [e for e in events_received if e.get('result', {}).get('kind') == 'status-update']
+            status_updates = get_status_updates(events_received)
             assert len(status_updates) >= 2  # At least working and completed
 
             # Should have artifact updates
-            artifact_updates = [e for e in events_received if e.get('result', {}).get('kind') == 'artifact-update']
+            artifact_updates = get_artifact_updates(events_received)
             assert len(artifact_updates) == 4  # 4 parts
 
             # Last status update should be final
-            last_status = next(
-                e for e in reversed(events_received) if e.get('result', {}).get('kind') == 'status-update'
-            )
+            last_status = status_updates[-1]
             assert last_status['result']['status']['state'] == 'completed'
             assert last_status['result']['final'] is True
 
@@ -198,33 +248,15 @@ async def test_streaming_endpoint_basic(streaming_app):
 
 
 @pytest.mark.asyncio
-async def test_streaming_endpoint_incremental_artifacts(streaming_app):
+async def test_streaming_endpoint_incremental_artifacts(streaming_app: FastA2A) -> None:
     """Test that artifacts are streamed incrementally."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=streaming_app), base_url='http://test'
         ) as client:
-            request_data = {
-                'jsonrpc': '2.0',
-                'id': 'test-2',
-                'method': 'message/stream',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': 'Test artifacts'}],
-                        'messageId': 'msg-2',
-                        'kind': 'message',
-                    }
-                },
-            }
-
-            artifact_events = []
-
-            async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
-                async for sse in event_source.aiter_sse():
-                    event_data = json.loads(sse.data)
-                    if event_data.get('result', {}).get('kind') == 'artifact-update':
-                        artifact_events.append(event_data['result'])
+            request_data = make_stream_request('Test artifacts', 'test-2', 'msg-2')
+            events = await collect_sse_events(client, request_data)
+            artifact_events = [e['result'] for e in get_artifact_updates(events)]
 
             # Verify artifact streaming
             assert len(artifact_events) == 4
@@ -250,26 +282,14 @@ async def test_streaming_endpoint_incremental_artifacts(streaming_app):
 
 
 @pytest.mark.asyncio
-async def test_streaming_vs_non_streaming_endpoints(streaming_app):
+async def test_streaming_vs_non_streaming_endpoints(streaming_app: FastA2A) -> None:
     """Test that both streaming and non-streaming endpoints work."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=streaming_app), base_url='http://test'
         ) as client:
             # First, test non-streaming endpoint
-            non_streaming_request = {
-                'jsonrpc': '2.0',
-                'id': 'test-3',
-                'method': 'message/send',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': 'Non-streaming test'}],
-                        'messageId': 'msg-3',
-                        'kind': 'message',
-                    }
-                },
-            }
+            non_streaming_request = make_send_request('Non-streaming test', 'test-3', 'msg-3')
 
             # Non-streaming should return immediately with task
             response = await client.post('/', json=non_streaming_request)
@@ -279,16 +299,20 @@ async def test_streaming_vs_non_streaming_endpoints(streaming_app):
             assert data['result']['status']['state'] == 'submitted'
             task_id = data['result']['id']
 
-            # Wait a bit for task to complete
-            await asyncio.sleep(0.5)
+            # Check task status with minimal polling
+            get_task_request = make_get_task_request(task_id, 'test-4')
 
-            # Check task status
-            get_task_request = {'jsonrpc': '2.0', 'id': 'test-4', 'method': 'tasks/get', 'params': {'id': task_id}}
+            # Poll for completion with short timeout
+            for _ in range(10):  # Try up to 10 times (1 second max)
+                response = await client.post('/', json=get_task_request)
+                assert response.status_code == 200
+                data = response.json()
+                if data['result']['status']['state'] == 'completed':
+                    break
+                await asyncio.sleep(0.1)  # Small delay between polls
+            else:
+                pytest.fail(f'Task did not complete, final state: {data["result"]["status"]["state"]}')
 
-            response = await client.post('/', json=get_task_request)
-            assert response.status_code == 200
-            data = response.json()
-            assert data['result']['status']['state'] == 'completed'
             assert len(data['result'].get('artifacts', [])) == 1
 
 
@@ -296,7 +320,7 @@ async def test_streaming_vs_non_streaming_endpoints(streaming_app):
 
 
 @pytest.mark.asyncio
-async def test_agent_card_shows_streaming_capability(streaming_app):
+async def test_agent_card_shows_streaming_capability(streaming_app: FastA2A) -> None:
     """Test that agent card correctly reports streaming capability."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
@@ -337,35 +361,15 @@ async def test_non_streaming_app():
 
 
 @pytest.mark.asyncio
-async def test_streaming_null_id_accepted(streaming_app):
+async def test_streaming_null_id_accepted(streaming_app: FastA2A) -> None:
     """Test streaming endpoint with explicit null ID - should work."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=streaming_app), base_url='http://test'
         ) as client:
             # Request with explicit null ID
-            request_data = {
-                'jsonrpc': '2.0',
-                'id': None,
-                'method': 'message/stream',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': 'Test'}],
-                        'messageId': 'msg-null',
-                        'kind': 'message',
-                    }
-                },
-            }
-
-            events_received = []
-
-            async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
-                async for sse in event_source.aiter_sse():
-                    event_data = json.loads(sse.data)
-                    events_received.append(event_data)
-                    # Stop after first event
-                    break
+            request_data = make_stream_request('Test', None, 'msg-null')
+            events_received = await collect_sse_events(client, request_data, lambda _: True)  # Stop after first event
 
             # Verify the event has null ID
             assert len(events_received) > 0
@@ -373,35 +377,15 @@ async def test_streaming_null_id_accepted(streaming_app):
 
 
 @pytest.mark.asyncio
-async def test_streaming_numeric_id_accepted(streaming_app):
+async def test_streaming_numeric_id_accepted(streaming_app: FastA2A) -> None:
     """Test streaming endpoint with numeric ID - should work per JSON-RPC spec."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=streaming_app), base_url='http://test'
         ) as client:
             # Request with numeric ID
-            request_data = {
-                'jsonrpc': '2.0',
-                'id': 12345,
-                'method': 'message/stream',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': 'Test'}],
-                        'messageId': 'msg-numeric',
-                        'kind': 'message',
-                    }
-                },
-            }
-
-            events_received = []
-
-            async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
-                async for sse in event_source.aiter_sse():
-                    event_data = json.loads(sse.data)
-                    events_received.append(event_data)
-                    # Stop after first event
-                    break
+            request_data = make_stream_request('Test', 12345, 'msg-numeric')
+            events_received = await collect_sse_events(client, request_data, lambda _: True)  # Stop after first event
 
             # Verify the event has numeric ID
             assert len(events_received) > 0
@@ -409,7 +393,7 @@ async def test_streaming_numeric_id_accepted(streaming_app):
 
 
 @pytest.mark.asyncio
-async def test_streaming_large_message(streaming_app):
+async def test_streaming_large_message(streaming_app: FastA2A) -> None:
     """Test streaming with a large message payload."""
     async with LifespanManager(streaming_app):
         async with httpx.AsyncClient(
@@ -417,31 +401,12 @@ async def test_streaming_large_message(streaming_app):
         ) as client:
             # Create a large message
             large_text = 'x' * 10000  # 10KB of text
-            request_data = {
-                'jsonrpc': '2.0',
-                'id': 'test-large',
-                'method': 'message/stream',
-                'params': {
-                    'message': {
-                        'role': 'user',
-                        'parts': [{'kind': 'text', 'text': large_text}],
-                        'messageId': 'msg-large',
-                        'kind': 'message',
-                    }
-                },
-            }
-
-            events_received = []
-
-            async with aconnect_sse(client, 'POST', '/', json=request_data) as event_source:
-                async for sse in event_source.aiter_sse():
-                    event_data = json.loads(sse.data)
-                    events_received.append(event_data)
+            request_data = make_stream_request(large_text, 'test-large', 'msg-large')
+            events_received = await collect_sse_events(client, request_data)
 
             # Should still process successfully
             assert len(events_received) > 0
             # Check we got a completed status
-            last_status = next(
-                e for e in reversed(events_received) if e.get('result', {}).get('kind') == 'status-update'
-            )
+            status_updates = get_status_updates(events_received)
+            last_status = status_updates[-1]
             assert last_status['result']['status']['state'] == 'completed'

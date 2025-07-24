@@ -55,8 +55,25 @@ async def test_agent_card_with_all_params():
         url='https://example.com',
         version='2.0.0',
         description='A test agent',
-        provider='Test Provider',
-        skills=['skill1', 'skill2'],
+        provider={'organization': 'Test Provider', 'url': 'https://example.com'},
+        skills=[
+            {
+                'id': 'skill1',
+                'name': 'Skill 1',
+                'description': 'First test skill',
+                'tags': ['test', 'skill1'],
+                'input_modes': ['application/json'],
+                'output_modes': ['application/json'],
+            },
+            {
+                'id': 'skill2',
+                'name': 'Skill 2',
+                'description': 'Second test skill',
+                'tags': ['test', 'skill2'],
+                'input_modes': ['application/json'],
+                'output_modes': ['application/json'],
+            },
+        ],
         streaming=True,
     )
     async with create_test_client(app) as client:
@@ -67,8 +84,10 @@ async def test_agent_card_with_all_params():
         assert data['url'] == 'https://example.com'
         assert data['version'] == '2.0.0'
         assert data['description'] == 'A test agent'
-        assert data['provider'] == 'Test Provider'
-        assert data['skills'] == ['skill1', 'skill2']
+        assert data['provider']['organization'] == 'Test Provider'
+        assert len(data['skills']) == 2
+        assert data['skills'][0]['id'] == 'skill1'
+        assert data['skills'][1]['id'] == 'skill2'
         assert data['capabilities']['streaming'] is True
 
 
