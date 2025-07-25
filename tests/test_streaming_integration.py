@@ -1,5 +1,7 @@
 """Integration tests for the streaming endpoint."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
