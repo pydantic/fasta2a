@@ -73,12 +73,17 @@ async def task_manager(
 
 
 def send_message_request(
-    message: Message, req_id: str = 'req-1', configuration: MessageSendConfiguration | None = None
+    message: Message,
+    req_id: str = 'req-1',
+    configuration: MessageSendConfiguration | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> SendMessageRequest:
     """Build a SendMessageRequest."""
     params: MessageSendParams = {'message': message}
     if configuration:
         params['configuration'] = configuration
+    if metadata:
+        params['metadata'] = metadata
     return {
         'jsonrpc': '2.0',
         'id': req_id,
@@ -88,12 +93,17 @@ def send_message_request(
 
 
 def stream_message_request(
-    message: Message, req_id: str = 'req-1', configuration: MessageSendConfiguration | None = None
+    message: Message,
+    req_id: str = 'req-1',
+    configuration: MessageSendConfiguration | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> StreamMessageRequest:
     """Build a StreamMessageRequest."""
     params: MessageSendParams = {'message': message}
     if configuration:
         params['configuration'] = configuration
+    if metadata:
+        params['metadata'] = metadata
     return {
         'jsonrpc': '2.0',
         'id': req_id,
@@ -183,9 +193,10 @@ async def test_send_message(
     # Mock broker.run_task
     mock_run_task = mocker.patch.object(broker, 'run_task', new_callable=AsyncMock)
 
-    # Create and send message
+    # Create and send message with metadata
     message = create_test_message(text='Hello', message_id='msg-1')
-    request = send_message_request(message, req_id='req-1')
+    metadata = {'user_id': '123'}
+    request = send_message_request(message, req_id='req-1', metadata=metadata)
 
     response = await tm.send_message(request)
 
@@ -200,8 +211,10 @@ async def test_send_message(
     assert 'id' in task
     assert 'context_id' in task
 
-    # Verify broker.run_task was called
+    # Verify broker.run_task was called with metadata
     mock_run_task.assert_called_once()
+    call_args = mock_run_task.call_args[0][0]
+    assert call_args.get('metadata') == metadata
 
 
 @pytest.mark.asyncio
@@ -436,11 +449,12 @@ async def test_stream_message(
         asyncio.create_task(worker_task())
 
     # Mock broker.run_task with side effect
-    mocker.patch.object(broker, 'run_task', new_callable=AsyncMock, side_effect=simulate_worker)
+    mock_run_task = mocker.patch.object(broker, 'run_task', new_callable=AsyncMock, side_effect=simulate_worker)
 
-    # Create stream request
+    # Create stream request with metadata
     message = create_test_message(text='Hello streaming', message_id='msg-12')
-    request = stream_message_request(message, req_id='req-12')
+    metadata = {'session_id': 'stream-123'}
+    request = stream_message_request(message, req_id='req-12', metadata=metadata)
 
     # Collect events
     events: list[Any] = []
@@ -455,6 +469,11 @@ async def test_stream_message(
     assert events[2]['kind'] == 'status-update'
     assert events[2]['status']['state'] == 'completed'
     assert events[2]['final'] is True
+
+    # Verify metadata was passed to broker
+    mock_run_task.assert_called_once()
+    call_args = mock_run_task.call_args[0][0]
+    assert call_args.get('metadata') == metadata
 
 
 @pytest.mark.asyncio

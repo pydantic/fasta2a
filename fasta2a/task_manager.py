@@ -127,6 +127,10 @@ class TaskManager:
         if history_length is not None:
             broker_params['history_length'] = history_length
 
+        metadata = request['params'].get('metadata')
+        if metadata is not None:
+            broker_params['metadata'] = metadata
+
         await self.broker.run_task(broker_params)
         return SendMessageResponse(jsonrpc='2.0', id=request_id, result=task)
 
@@ -184,6 +188,10 @@ class TaskManager:
         history_length = config.get('history_length')
         if history_length is not None:
             broker_params['history_length'] = history_length
+
+        metadata = params.get('metadata')
+        if metadata is not None:
+            broker_params['metadata'] = metadata
 
         # Start task execution in background
         asyncio.create_task(self.broker.run_task(broker_params))
