@@ -73,7 +73,9 @@ class FastA2A(Starlette):
 
         # Setup
         self._agent_card_json_schema: bytes | None = None
-        self.router.add_route('/.well-known/agent.json', self._agent_card_endpoint, methods=['HEAD', 'GET', 'OPTIONS'])
+        self.router.add_route(
+            '/.well-known/agent-card.json', self._agent_card_endpoint, methods=['HEAD', 'GET', 'OPTIONS']
+        )
         self.router.add_route('/', self._agent_run_endpoint, methods=['POST'])
         self.router.add_route('/docs', self._docs_endpoint, methods=['GET'])
 

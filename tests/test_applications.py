@@ -25,7 +25,7 @@ async def create_test_client(app: FastA2A):
 async def test_agent_card():
     app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker())
     async with create_test_client(app) as client:
-        response = await client.get('/.well-known/agent.json')
+        response = await client.get('/.well-known/agent-card.json')
         assert response.status_code == 200
         assert response.json() == snapshot(
             {

@@ -146,20 +146,20 @@
         .skills {
             margin-top: 20px;
         }
-        
+
         .agent-card-link {
             position: absolute;
             bottom: 15px;
             right: 15px;
             font-size: 0.8em;
         }
-        
+
         .agent-card-link a {
             color: #6c757d;
             text-decoration: none;
             font-family: 'Courier New', monospace;
         }
-        
+
         .agent-card-link a:hover {
             color: #e92063;
             text-decoration: underline;
@@ -489,8 +489,8 @@
                     <div class="loading">Loading agent information...</div>
                 </div>
                 <div class="agent-card-link">
-                    <a href="/.well-known/agent.json" target="_blank" rel="noopener noreferrer">
-                        /.well-known/agent.json
+                    <a href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer">
+                        /.well-known/agent-card.json
                     </a>
                 </div>
             </div>
@@ -530,7 +530,7 @@
         // Load agent card information
         async function loadAgentCard() {
             try {
-                const response = await fetch('/.well-known/agent.json');
+                const response = await fetch('/.well-known/agent-card.json');
                 if (!response.ok) throw new Error('Failed to load agent card');
 
                 agentCard = await response.json();
