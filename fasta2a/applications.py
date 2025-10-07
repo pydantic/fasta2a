@@ -91,7 +91,7 @@ class FastA2A(Starlette):
                 description=self.description or 'An AI agent exposed as an A2A agent.',
                 url=self.url,
                 version=self.version,
-                protocol_version='0.2.5',
+                protocol_version='0.3.0',
                 skills=self.skills,
                 default_input_modes=self.default_input_modes,
                 default_output_modes=self.default_output_modes,
