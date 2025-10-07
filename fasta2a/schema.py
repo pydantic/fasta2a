@@ -808,3 +808,7 @@ send_message_request_ta: TypeAdapter[SendMessageRequest] = TypeAdapter(SendMessa
 send_message_response_ta: TypeAdapter[SendMessageResponse] = TypeAdapter(SendMessageResponse)
 stream_message_request_ta: TypeAdapter[StreamMessageRequest] = TypeAdapter(StreamMessageRequest)
 stream_message_response_ta: TypeAdapter[StreamMessageResponse] = TypeAdapter(StreamMessageResponse)
+
+# Type adapter for streaming events
+StreamEvent = Union[Task, Message, TaskStatusUpdateEvent, TaskArtifactUpdateEvent]
+stream_event_ta: TypeAdapter[StreamEvent] = TypeAdapter(StreamEvent)
