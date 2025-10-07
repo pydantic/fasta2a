@@ -298,8 +298,19 @@ class PushNotificationConfig(TypedDict):
     token: NotRequired[str]
     """Token unique to this task/session."""
 
-    authentication: NotRequired[SecurityScheme]
+    authentication: NotRequired[PushNotificationAuthenticationInfo]
     """Authentication details for push notifications."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class PushNotificationAuthenticationInfo(TypedDict):
+    """Authentication information for push notifications."""
+
+    schemes: list[str]
+    """A list of supported authentication schemes (e.g., 'Basic', 'Bearer')."""
+
+    credentials: NotRequired[str]
+    """Optional credentials required by the push notification endpoint."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
