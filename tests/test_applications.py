@@ -66,5 +66,5 @@ class TestDocsEndpoint:
             assert response.status_code == 404
 
     async def test_docs_endpoint_invalid_url(self):
-        with pytest.raises(AssertionError, match="must start with"):
+        with pytest.raises(AssertionError, match='must start with'):
             _ = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url='http://invalid-url.local')
