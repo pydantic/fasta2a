@@ -141,6 +141,7 @@ class FastA2A(Starlette):
             content=a2a_response_ta.dump_json(jsonrpc_response, by_alias=True), media_type='application/json'
         )
 
+
 @asynccontextmanager
 async def _default_lifespan(app: FastA2A) -> AsyncIterator[None]:
     async with app.task_manager:
