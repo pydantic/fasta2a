@@ -44,3 +44,27 @@ async def test_agent_card():
                 },
             }
         )
+
+
+class TestDocsEndpoint:
+    async def test_docs_endpoint_default(self):
+        app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker())
+        async with create_test_client(app) as client:
+            response = await client.get('/docs')
+            assert response.status_code == 200
+
+    async def test_docs_endpoint_custom_url(self):
+        app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url='/custom-docs')
+        async with create_test_client(app) as client:
+            response = await client.get('/custom-docs')
+            assert response.status_code == 200
+
+    async def test_docs_endpoint_disabled(self):
+        app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url=None)
+        async with create_test_client(app) as client:
+            response = await client.get('/docs')
+            assert response.status_code == 404
+
+    async def test_docs_endpoint_invalid_url(self):
+        with pytest.raises(AssertionError, match="must start with"):
+            _ = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url='http://invalid-url.local')

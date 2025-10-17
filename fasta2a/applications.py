@@ -41,6 +41,7 @@ class FastA2A(Starlette):
         description: str | None = None,
         provider: AgentProvider | None = None,
         skills: list[Skill] | None = None,
+        docs_url: str | None = '/docs',
         # Starlette
         debug: bool = False,
         routes: Sequence[Route] | None = None,
@@ -65,6 +66,7 @@ class FastA2A(Starlette):
         self.description = description
         self.provider = provider
         self.skills = skills or []
+        self.docs_url = docs_url
         # NOTE: For now, I don't think there's any reason to support any other input/output modes.
         self.default_input_modes = ['application/json']
         self.default_output_modes = ['application/json']
@@ -77,7 +79,9 @@ class FastA2A(Starlette):
             '/.well-known/agent-card.json', self._agent_card_endpoint, methods=['HEAD', 'GET', 'OPTIONS']
         )
         self.router.add_route('/', self._agent_run_endpoint, methods=['POST'])
-        self.router.add_route('/docs', self._docs_endpoint, methods=['GET'])
+
+        if self.docs_url is not None:
+            self.router.add_route(self.docs_url, self._docs_endpoint, methods=['GET'])
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope['type'] == 'http' and not self.task_manager.is_running:
@@ -136,7 +140,6 @@ class FastA2A(Starlette):
         return Response(
             content=a2a_response_ta.dump_json(jsonrpc_response, by_alias=True), media_type='application/json'
         )
-
 
 @asynccontextmanager
 async def _default_lifespan(app: FastA2A) -> AsyncIterator[None]:
