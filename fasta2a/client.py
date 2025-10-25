@@ -6,6 +6,7 @@ from typing import Any
 import pydantic
 
 from .schema import (
+    AgentCard,
     GetTaskRequest,
     GetTaskResponse,
     Message,
@@ -31,7 +32,23 @@ except ImportError as _import_error:
 class A2AClient:
     """A client for the A2A protocol."""
 
-    def __init__(self, base_url: str = 'http://localhost:8000', http_client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        agent: str | AgentCard,
+        http_client: httpx.AsyncClient | None = None,
+        fetch_card: bool = False,
+        relative_card_path: str | None = None,
+    ) -> None:
+        self.agent_card = None
+        if fetch_card and isinstance(agent, str):
+            if relative_card_path is None:
+                relative_card_path = "/.well-known/agent-card.json"
+            agent_url = agent.rstrip("/") + relative_card_path
+            response = httpx.get(agent_url)
+            response.raise_for_status()
+            agent = AgentCard(**response.json())
+            self.agent_card = agent
+        base_url = agent if isinstance(agent, str) else agent['url']
         if http_client is None:
             self.http_client = httpx.AsyncClient(base_url=base_url)
         else:
