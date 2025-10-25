@@ -1,6 +1,7 @@
 import asyncio
 import socket
 import threading
+from collections.abc import AsyncGenerator
 
 import httpx
 import pytest
@@ -22,63 +23,51 @@ def get_free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest_asyncio.fixture(scope='function')
-async def run_server_1():
-    """Run FastA2A in a background thread and wait until it responds."""
-    port = get_free_port()
-    url = f'http://{SERVER_HOST}:{port}'
-    app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), url=url)
-
-    # Start server in background thread
-    def _run_uvicorn():
-        uvicorn.run(app, host=SERVER_HOST, port=port, log_level='error')
-
-    thread = threading.Thread(target=_run_uvicorn, daemon=True)
-    thread.start()
-    # Wait until the server responds to requests
+async def _wait_server(url: str, retries: int = 100, delay: float = 0.1):
+    """Wait until the server responds (any response, even 404)."""
     async with httpx.AsyncClient() as client:
         for _ in range(retries):
             try:
                 await client.get(url)
                 return
             except httpx.RequestError:
-                await asyncio.sleep(0.1)  # Server not ready, wait and retry
-        else:
-            raise RuntimeError('Server did not start in time')
-    yield url
+                await asyncio.sleep(delay)
+        raise RuntimeError(f'Server at {url} did not start in time')
+
+
+def _start_server_in_thread(app: FastA2A, host: str, port: int):
+    """Run uvicorn server in a background thread."""
+
+    def _run_uvicorn():
+        uvicorn.run(app, host=host, port=port, log_level='error')
+
+    thread = threading.Thread(target=_run_uvicorn, daemon=True)
+    thread.start()
 
 
 @pytest_asyncio.fixture(scope='function')
-async def run_server_2():
-    """Run FastA2A in a background thread and wait until it responds."""
+async def run_server(request: pytest.FixtureRequest) -> AsyncGenerator[str, None]:
+    """
+    Generic fixture to run a FastA2A server.
+
+    Accepts optional parameters via `request.param`:
+        - name: agent name
+        - description: agent description
+    """
+    params = getattr(request, 'param', {})
     port = get_free_port()
     url = f'http://{SERVER_HOST}:{port}'
+
     app = FastA2A(
         storage=InMemoryStorage(),
         broker=InMemoryBroker(),
         url=url,
-        name='Test Agent',
-        description='A test agent for unit tests.',
+        name=params.get('name'),
+        description=params.get('description'),
     )
 
-    # Start server in background thread
-    def _run_uvicorn():
-        uvicorn.run(app, host=SERVER_HOST, port=port, log_level='error')
-
-    thread = threading.Thread(target=_run_uvicorn, daemon=True)
-    thread.start()
-    # Wait until the server responds to requests
-    async with httpx.AsyncClient() as client:
-        for _ in range(100):
-            try:
-                # Ping the root. Any response (even 404) means the server is up.
-                # The RequestError exception will catch connection-refused.
-                await client.get(url)
-                break  # Server is up and responding
-            except httpx.RequestError:
-                await asyncio.sleep(0.1)  # Server not ready, wait and retry
-        else:
-            raise RuntimeError('Server did not start in time')
+    _start_server_in_thread(app, SERVER_HOST, port)
+    await _wait_server(url)
     yield url
 
 
@@ -88,22 +77,29 @@ async def run_server_2():
 
 
 @pytest.mark.asyncio
-async def test_client_basic(run_server_1):
-    a2a_client = A2AClient(agent=run_server_1)
-    assert str(a2a_client.http_client.base_url) == run_server_1
+async def test_client_basic(run_server: str):
+    client = A2AClient(agent=run_server)
+    assert str(client.http_client.base_url) == run_server
 
 
 @pytest.mark.asyncio
-async def test_client_fetch_card(run_server):
+async def test_client_fetch_card(run_server: str):
     client = A2AClient(agent=run_server, fetch_card=True)
-    assert client._agent_card is not None
+    assert hasattr(client, 'agent_card') and client.agent_card is not None
     assert client.http_client.base_url == run_server
 
 
+# Parameterize the fixture for tests needing a named agent
 @pytest.mark.asyncio
-async def test_client_check_agent_card(run_server_2):
-    a2a_client = A2AClient(agent=run_server_2, fetch_card=True)
-    assert a2a_client.http_client.base_url == run_server_2
-    assert a2a_client._agent_card is not None
-    assert a2a_client._agent_card['name'] == 'Test Agent'
-    assert a2a_client._agent_card['description'] == 'A test agent for unit tests.'
+@pytest.mark.parametrize(
+    'run_server',
+    [{'name': 'Test Agent', 'description': 'A test agent for unit tests.'}],
+    indirect=True,
+)
+async def test_client_check_agent_card(run_server: str):
+    client = A2AClient(agent=run_server, fetch_card=True)
+    assert client.http_client.base_url == run_server
+    assert hasattr(client, 'agent_card') and client.agent_card is not None
+    card = getattr(client, 'agent_card', {})
+    assert card.get('name') == 'Test Agent'
+    assert card.get('description') == 'A test agent for unit tests.'
