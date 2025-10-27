@@ -47,7 +47,7 @@ class A2AClient:
             response = httpx.get(agent_url)
             response.raise_for_status()
             agent = AgentCard(**response.json())
-            self._agent_card = agent
+            self.agent_card = agent
         base_url = agent if isinstance(agent, str) else agent['url']
         if http_client is None:
             self.http_client = httpx.AsyncClient(base_url=base_url)
