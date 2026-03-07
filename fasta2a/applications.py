@@ -95,13 +95,10 @@ class FastA2A(Starlette):
                 description=self.description or 'An AI agent exposed as an A2A agent.',
                 url=self.url,
                 version=self.version,
-                protocol_version='0.3.0',
                 skills=self.skills,
                 default_input_modes=self.default_input_modes,
                 default_output_modes=self.default_output_modes,
-                capabilities=AgentCapabilities(
-                    streaming=False, push_notifications=False, state_transition_history=False
-                ),
+                capabilities=AgentCapabilities(streaming=False, push_notifications=False),
             )
             if self.provider is not None:
                 agent_card['provider'] = self.provider

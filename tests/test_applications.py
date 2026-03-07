@@ -33,14 +33,12 @@ async def test_agent_card():
                 'description': 'An AI agent exposed as an A2A agent.',
                 'url': 'http://localhost:8000',
                 'version': '1.0.0',
-                'protocolVersion': '0.3.0',
                 'skills': [],
                 'defaultInputModes': ['application/json'],
                 'defaultOutputModes': ['application/json'],
                 'capabilities': {
                     'streaming': False,
                     'pushNotifications': False,
-                    'stateTransitionHistory': False,
                 },
             }
         )

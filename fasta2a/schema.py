@@ -30,9 +30,6 @@ class AgentCard(TypedDict):
     version: str
     """The version of the agent - format is up to the provider. (e.g. "1.0.0")"""
 
-    protocol_version: str
-    """The version of the A2A protocol this agent supports."""
-
     provider: NotRequired[AgentProvider]
     """The service provider of the agent."""
 
@@ -42,16 +39,13 @@ class AgentCard(TypedDict):
     icon_url: NotRequired[str]
     """A URL to an icon for the agent."""
 
-    preferred_transport: NotRequired[str]
-    """The transport of the preferred endpoint. If empty, defaults to JSONRPC."""
-
-    additional_interfaces: NotRequired[list[AgentInterface]]
-    """Announcement of additional supported transports."""
+    supported_interfaces: NotRequired[list[AgentInterface]]
+    """Ordered list of supported interfaces. The first entry is preferred."""
 
     capabilities: AgentCapabilities
     """The capabilities of the agent."""
 
-    security: NotRequired[list[dict[str, list[str]]]]
+    security_requirements: NotRequired[list[SecurityRequirement]]
     """Security requirements for contacting the agent."""
 
     security_schemes: NotRequired[dict[str, SecurityScheme]]
@@ -65,6 +59,9 @@ class AgentCard(TypedDict):
 
     skills: list[Skill]
     """The set of skills, or distinct capabilities, that the agent can perform."""
+
+    signatures: NotRequired[list[AgentCardSignature]]
+    """JSON Web Signatures computed for this AgentCard."""
 
 
 agent_card_ta = pydantic.TypeAdapter(AgentCard)
@@ -90,19 +87,19 @@ class AgentCapabilities(TypedDict):
     push_notifications: NotRequired[bool]
     """Whether the agent can notify updates to client."""
 
-    state_transition_history: NotRequired[bool]
-    """Whether the agent exposes status change history for tasks."""
+    extended_agent_card: NotRequired[bool]
+    """Whether the agent supports providing an extended agent card when authenticated."""
+
+    extensions: NotRequired[list[AgentExtension]]
+    """A list of protocol extensions supported by the agent."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
 class HttpSecurityScheme(TypedDict):
     """HTTP security scheme."""
 
-    type: Literal['http']
-    """The type of the security scheme. Must be 'http'."""
-
     scheme: str
-    """The name of the HTTP Authorization scheme."""
+    """The name of the HTTP Authorization scheme (e.g., 'Bearer')."""
 
     bearer_format: NotRequired[str]
     """A hint to the client to identify how the bearer token is formatted."""
@@ -115,28 +112,124 @@ class HttpSecurityScheme(TypedDict):
 class ApiKeySecurityScheme(TypedDict):
     """API Key security scheme."""
 
-    type: Literal['apiKey']
-    """The type of the security scheme. Must be 'apiKey'."""
-
     name: str
     """The name of the header, query or cookie parameter to be used."""
 
-    in_: Literal['query', 'header', 'cookie']
-    """The location of the API key."""
+    location: str
+    """The location of the API key. Valid values are 'query', 'header', or 'cookie'."""
 
     description: NotRequired[str]
     """Description of this security scheme."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
+class AuthorizationCodeOAuthFlow(TypedDict):
+    """Configuration for the OAuth 2.0 Authorization Code flow."""
+
+    authorization_url: str
+    """The authorization URL to be used for this flow."""
+
+    token_url: str
+    """The token URL to be used for this flow."""
+
+    refresh_url: NotRequired[str]
+    """The URL to be used for obtaining refresh tokens."""
+
+    scopes: NotRequired[dict[str, str]]
+    """The available scopes for the OAuth2 security scheme."""
+
+    pkce_required: NotRequired[bool]
+    """Whether PKCE (RFC 7636) is required for this flow."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class ClientCredentialsOAuthFlow(TypedDict):
+    """Configuration for the OAuth 2.0 Client Credentials flow."""
+
+    token_url: str
+    """The token URL to be used for this flow."""
+
+    refresh_url: NotRequired[str]
+    """The URL to be used for obtaining refresh tokens."""
+
+    scopes: NotRequired[dict[str, str]]
+    """The available scopes for the OAuth2 security scheme."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class DeviceCodeOAuthFlow(TypedDict):
+    """Configuration for the OAuth 2.0 Device Code flow (RFC 8628)."""
+
+    device_authorization_url: str
+    """The device authorization endpoint URL."""
+
+    token_url: str
+    """The token URL to be used for this flow."""
+
+    refresh_url: NotRequired[str]
+    """The URL to be used for obtaining refresh tokens."""
+
+    scopes: NotRequired[dict[str, str]]
+    """The available scopes for the OAuth2 security scheme."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class ImplicitOAuthFlow(TypedDict):
+    """Deprecated: Use Authorization Code + PKCE instead."""
+
+    authorization_url: str
+    """The authorization URL to be used for this flow."""
+
+    refresh_url: NotRequired[str]
+    """The URL to be used for obtaining refresh tokens."""
+
+    scopes: NotRequired[dict[str, str]]
+    """The available scopes for the OAuth2 security scheme."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class PasswordOAuthFlow(TypedDict):
+    """Deprecated: Use Authorization Code + PKCE or Device Code."""
+
+    token_url: str
+    """The token URL to be used for this flow."""
+
+    refresh_url: NotRequired[str]
+    """The URL to be used for obtaining refresh tokens."""
+
+    scopes: NotRequired[dict[str, str]]
+    """The available scopes for the OAuth2 security scheme."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class OAuthFlows(TypedDict):
+    """Configuration for the supported OAuth 2.0 flows."""
+
+    authorization_code: NotRequired[AuthorizationCodeOAuthFlow]
+    """Configuration for the OAuth Authorization Code flow."""
+
+    client_credentials: NotRequired[ClientCredentialsOAuthFlow]
+    """Configuration for the OAuth Client Credentials flow."""
+
+    device_code: NotRequired[DeviceCodeOAuthFlow]
+    """Configuration for the OAuth Device Code flow."""
+
+    implicit: NotRequired[ImplicitOAuthFlow]
+    """Deprecated: Use Authorization Code + PKCE instead."""
+
+    password: NotRequired[PasswordOAuthFlow]
+    """Deprecated: Use Authorization Code + PKCE or Device Code."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
 class OAuth2SecurityScheme(TypedDict):
     """OAuth2 security scheme."""
 
-    type: Literal['oauth2']
-    """The type of the security scheme. Must be 'oauth2'."""
+    flows: NotRequired[OAuthFlows]
+    """An object containing configuration information for the supported OAuth 2.0 flows."""
 
-    flows: dict[str, Any]
-    """An object containing configuration information for the flow types supported."""
+    oauth2_metadata_url: NotRequired[str]
+    """URL to the OAuth2 authorization server metadata (RFC 8414)."""
 
     description: NotRequired[str]
     """Description of this security scheme."""
@@ -146,9 +239,6 @@ class OAuth2SecurityScheme(TypedDict):
 class OpenIdConnectSecurityScheme(TypedDict):
     """OpenID Connect security scheme."""
 
-    type: Literal['openIdConnect']
-    """The type of the security scheme. Must be 'openIdConnect'."""
-
     open_id_connect_url: str
     """OpenId Connect URL to discover OAuth2 configuration values."""
 
@@ -156,25 +246,59 @@ class OpenIdConnectSecurityScheme(TypedDict):
     """Description of this security scheme."""
 
 
-SecurityScheme = Annotated[
-    Union[HttpSecurityScheme, ApiKeySecurityScheme, OAuth2SecurityScheme, OpenIdConnectSecurityScheme],
-    pydantic.Field(discriminator='type'),
-]
-"""A security scheme for authentication."""
+class MutualTlsSecurityScheme(TypedDict):
+    """Mutual TLS security scheme."""
+
+    description: NotRequired[str]
+    """Description of this security scheme."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class SecurityScheme(TypedDict):
+    """A security scheme for authentication.
+
+    This is a wrapper type with mutually exclusive optional fields.
+    """
+
+    http_auth_security_scheme: NotRequired[HttpSecurityScheme]
+    """HTTP authentication (Basic, Bearer, etc.)."""
+
+    api_key_security_scheme: NotRequired[ApiKeySecurityScheme]
+    """API key-based authentication."""
+
+    oauth2_security_scheme: NotRequired[OAuth2SecurityScheme]
+    """OAuth 2.0 authentication."""
+
+    open_id_connect_security_scheme: NotRequired[OpenIdConnectSecurityScheme]
+    """OpenID Connect authentication."""
+
+    mtls_security_scheme: NotRequired[MutualTlsSecurityScheme]
+    """Mutual TLS authentication."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class SecurityRequirement(TypedDict):
+    """Defines the security requirements for an agent or skill."""
+
+    schemes: dict[str, list[str]]
+    """A map of security scheme names to the required scopes."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
 class AgentInterface(TypedDict):
     """An interface that the agent supports."""
 
-    transport: str
-    """The transport protocol (e.g., 'jsonrpc', 'websocket')."""
+    protocol_binding: str
+    """The protocol binding (e.g., 'JSONRPC', 'GRPC', 'HTTP+JSON')."""
 
     url: str
-    """The URL endpoint for this transport."""
+    """The URL endpoint for this interface."""
 
-    description: NotRequired[str]
-    """Description of this interface."""
+    protocol_version: NotRequired[str]
+    """The version of the A2A protocol this interface exposes."""
+
+    tenant: NotRequired[str]
+    """Tenant ID to be used in the request when calling the agent."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -192,6 +316,19 @@ class AgentExtension(TypedDict):
 
     params: NotRequired[dict[str, Any]]
     """Optional configuration for the extension."""
+
+
+class AgentCardSignature(TypedDict):
+    """Represents a JWS signature of an AgentCard (RFC 7515)."""
+
+    protected: str
+    """The protected JWS header, base64url-encoded JSON object."""
+
+    signature: str
+    """The computed signature, base64url-encoded."""
+
+    header: NotRequired[dict[str, Any]]
+    """The unprotected JWS header values."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -227,6 +364,9 @@ class Skill(TypedDict):
 
     output_modes: list[str]
     """Supported mime types for output data."""
+
+    security_requirements: NotRequired[list[SecurityRequirement]]
+    """Security schemes necessary for this skill."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
