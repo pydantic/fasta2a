@@ -17,38 +17,20 @@ class AgentCard(TypedDict):
     name: str
     """Human readable name of the agent e.g. "Recipe Agent"."""
 
-    description: str
+    description: NotRequired[str]
     """A human-readable description of the agent.
 
     Used to assist users and other agents in understanding what the agent can do.
     (e.g. "Agent that helps users with recipes and cooking.")
     """
 
-    url: str
-    """A URL to the address the agent is hosted at."""
-
-    version: str
-    """The version of the agent - format is up to the provider. (e.g. "1.0.0")"""
-
-    protocol_version: str
-    """The version of the A2A protocol this agent supports."""
-
     provider: NotRequired[AgentProvider]
     """The service provider of the agent."""
 
-    documentation_url: NotRequired[str]
-    """A URL to documentation for the agent."""
+    interfaces: NotRequired[list[AgentInterface]]
+    """Supported interfaces/transports for the agent."""
 
-    icon_url: NotRequired[str]
-    """A URL to an icon for the agent."""
-
-    preferred_transport: NotRequired[str]
-    """The transport of the preferred endpoint. If empty, defaults to JSONRPC."""
-
-    additional_interfaces: NotRequired[list[AgentInterface]]
-    """Announcement of additional supported transports."""
-
-    capabilities: AgentCapabilities
+    capabilities: NotRequired[AgentCapabilities]
     """The capabilities of the agent."""
 
     security: NotRequired[list[dict[str, list[str]]]]
@@ -57,14 +39,14 @@ class AgentCard(TypedDict):
     security_schemes: NotRequired[dict[str, SecurityScheme]]
     """Security scheme definitions."""
 
-    default_input_modes: list[str]
-    """Supported mime types for input data."""
-
-    default_output_modes: list[str]
-    """Supported mime types for output data."""
-
-    skills: list[Skill]
+    skills: NotRequired[list[Skill]]
     """The set of skills, or distinct capabilities, that the agent can perform."""
+
+    extensions: NotRequired[list[AgentExtension]]
+    """Extensions supported by the agent."""
+
+    signature: NotRequired[AgentCardSignature]
+    """Signature for the agent card."""
 
 
 agent_card_ta = pydantic.TypeAdapter(AgentCard)
@@ -192,6 +174,20 @@ class AgentExtension(TypedDict):
 
     params: NotRequired[dict[str, Any]]
     """Optional configuration for the extension."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class AgentCardSignature(TypedDict):
+    """Signature for the agent card."""
+
+    algorithm: str
+    """The algorithm used to sign the agent card."""
+
+    key_id: str
+    """The key identifier."""
+
+    value: str
+    """The signature value."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})

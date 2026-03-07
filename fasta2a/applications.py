@@ -36,8 +36,6 @@ class FastA2A(Starlette):
         broker: Broker,
         # Agent card
         name: str | None = None,
-        url: str = 'http://localhost:8000',
-        version: str = '1.0.0',
         description: str | None = None,
         provider: AgentProvider | None = None,
         skills: list[Skill] | None = None,
@@ -61,15 +59,10 @@ class FastA2A(Starlette):
         )
 
         self.name = name or 'My Agent'
-        self.url = url
-        self.version = version
         self.description = description
         self.provider = provider
         self.skills = skills or []
         self.docs_url = docs_url
-        # NOTE: For now, I don't think there's any reason to support any other input/output modes.
-        self.default_input_modes = ['application/json']
-        self.default_output_modes = ['application/json']
 
         self.task_manager = TaskManager(broker=broker, storage=storage)
 
@@ -92,17 +85,13 @@ class FastA2A(Starlette):
         if self._agent_card_json_schema is None:
             agent_card = AgentCard(
                 name=self.name,
-                description=self.description or 'An AI agent exposed as an A2A agent.',
-                url=self.url,
-                version=self.version,
-                protocol_version='0.3.0',
                 skills=self.skills,
-                default_input_modes=self.default_input_modes,
-                default_output_modes=self.default_output_modes,
                 capabilities=AgentCapabilities(
                     streaming=False, push_notifications=False, state_transition_history=False
                 ),
             )
+            if self.description is not None:
+                agent_card['description'] = self.description
             if self.provider is not None:
                 agent_card['provider'] = self.provider
             self._agent_card_json_schema = agent_card_ta.dump_json(agent_card, by_alias=True)
