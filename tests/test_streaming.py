@@ -110,7 +110,7 @@ async def test_stream_message():
             message_id=str(uuid.uuid4()),
         )
 
-        events: list[dict[str, Any]] = []
+        events: list[StreamResponse] = []
         async for response in client.stream_message(message):
             if 'result' in response:
                 events.append(response['result'])
