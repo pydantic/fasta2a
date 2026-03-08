@@ -2,6 +2,7 @@
 
 from __future__ import annotations as _annotations
 
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,12 +13,29 @@ import anyio.abc
 from .schema import StreamResponse
 
 
-class EventBus:
+class EventBus(ABC):
     """A pub/sub event bus for streaming task events.
 
     Allows workers to emit events that are delivered to SSE connections.
-    Each subscription creates an anyio memory stream pair keyed by task ID.
     """
+
+    @abstractmethod
+    @asynccontextmanager
+    async def subscribe(self, task_id: str) -> AsyncIterator[anyio.abc.ObjectReceiveStream[StreamResponse]]:
+        """Subscribe to events for a task. Yields a receive stream."""
+        yield  # type: ignore[misc]
+
+    @abstractmethod
+    async def emit(self, task_id: str, event: StreamResponse) -> None:
+        """Emit an event to all subscribers for a task."""
+
+    @abstractmethod
+    async def close(self, task_id: str) -> None:
+        """Close all subscriber streams for a task, signaling end of SSE."""
+
+
+class InMemoryEventBus(EventBus):
+    """An in-memory event bus using anyio memory streams."""
 
     def __init__(self) -> None:
         self._subscribers: dict[str, list[anyio.abc.ObjectSendStream[StreamResponse]]] = defaultdict(list)

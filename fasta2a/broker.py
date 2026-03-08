@@ -11,7 +11,7 @@ from opentelemetry.trace import Span, get_current_span, get_tracer
 from pydantic import Discriminator
 from typing_extensions import Self, TypedDict
 
-from .event_bus import EventBus
+from .event_bus import EventBus, InMemoryEventBus
 from .schema import TaskIdParams, TaskSendParams
 
 tracer = get_tracer(__name__)
@@ -28,7 +28,7 @@ class Broker(ABC):
     extended to support remote workers.
     """
 
-    event_bus: EventBus = field(default_factory=EventBus)
+    event_bus: EventBus = field(default_factory=InMemoryEventBus)
 
     @abstractmethod
     async def run_task(self, params: TaskSendParams) -> None:
