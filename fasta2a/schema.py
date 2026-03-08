@@ -815,9 +815,25 @@ SendMessageResponse = JSONRPCResponse[Union[Task, Message], JSONRPCError[Any, An
 StreamMessageRequest = JSONRPCRequest[Literal['message/stream'], MessageSendParams]
 """A JSON RPC request to stream a message."""
 
-StreamMessageResponse = JSONRPCResponse[
-    Union[Task, Message, TaskStatusUpdateEvent, TaskArtifactUpdateEvent], JSONRPCError[Any, Any]
-]
+
+@pydantic.with_config({'alias_generator': to_camel})
+class StreamResponse(TypedDict):
+    """A wrapper for streaming response data with mutually exclusive fields."""
+
+    message: NotRequired[Message]
+    """A Message object containing a message from the agent."""
+
+    task: NotRequired[Task]
+    """A Task object containing the current state of the task."""
+
+    status_update: NotRequired[TaskStatusUpdateEvent]
+    """An event indicating a task status update."""
+
+    artifact_update: NotRequired[TaskArtifactUpdateEvent]
+    """An event indicating a task artifact update."""
+
+
+StreamMessageResponse = JSONRPCResponse[StreamResponse, JSONRPCError[Any, Any]]
 """A JSON RPC response to a StreamMessageRequest."""
 
 GetTaskRequest = JSONRPCRequest[Literal['tasks/get'], TaskQueryParams]
