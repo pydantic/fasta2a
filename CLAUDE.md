@@ -33,7 +33,7 @@ The library follows a modular architecture with these key components:
 
 ### Protocol Implementation
 
-The library implements the A2A protocol v0.3.0, supporting:
+The library implements the A2A protocol v1, supporting:
 - Task-based message exchange
 - JSON-RPC 2.0 communication
 - Agent capabilities and skill definitions
