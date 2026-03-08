@@ -3,13 +3,14 @@ from __future__ import annotations as _annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic
 
 import anyio
 from opentelemetry.trace import get_tracer, use_span
 from typing_extensions import assert_never
 
+from .event_bus import EventBus
 from .storage import ContextT, Storage
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Worker(ABC, Generic[ContextT]):
 
     broker: Broker
     storage: Storage[ContextT]
+    event_bus: EventBus = field(default_factory=EventBus)
 
     @asynccontextmanager
     async def run(self) -> AsyncIterator[None]:
@@ -54,7 +56,21 @@ class Worker(ABC, Generic[ContextT]):
                     else:
                         assert_never(task_operation)
         except Exception:
-            await self.storage.update_task(task_operation['params']['id'], state='failed')
+            task_id = task_operation['params']['id']
+            task = await self.storage.update_task(task_id, state='failed')
+            from .schema import StreamResponse, TaskStatus, TaskStatusUpdateEvent
+
+            await self.event_bus.emit(
+                task_id,
+                StreamResponse(
+                    status_update=TaskStatusUpdateEvent(
+                        task_id=task_id,
+                        context_id=task['context_id'],
+                        status=TaskStatus(state='failed'),
+                    )
+                ),
+            )
+            await self.event_bus.close(task_id)
 
     @abstractmethod
     async def run_task(self, params: TaskSendParams) -> None: ...

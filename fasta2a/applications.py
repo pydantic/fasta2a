@@ -8,7 +8,7 @@ from typing import Any
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, Response, StreamingResponse
 from starlette.routing import Route
 from starlette.types import ExceptionHandler, Lifespan, Receive, Scope, Send
 
@@ -19,9 +19,7 @@ from .schema import (
     AgentCard,
     AgentInterface,
     AgentProvider,
-    SendMessageResponse,
     Skill,
-    UnsupportedOperationError,
     a2a_request_ta,
     a2a_response_ta,
     agent_card_ta,
@@ -150,16 +148,14 @@ class FastA2A(Starlette):
         elif a2a_request['method'] == 'tasks/list':
             jsonrpc_response = await self.task_manager.list_tasks(a2a_request)
         elif a2a_request['method'] == 'message/stream':
-            jsonrpc_response = SendMessageResponse(
-                jsonrpc='2.0',
-                id=a2a_request['id'],
-                error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
+            return StreamingResponse(
+                self.task_manager.stream_message(a2a_request),
+                media_type='text/event-stream',
             )
         elif a2a_request['method'] == 'tasks/resubscribe':
-            jsonrpc_response = SendMessageResponse(
-                jsonrpc='2.0',
-                id=a2a_request['id'],
-                error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
+            return StreamingResponse(
+                self.task_manager.resubscribe_task(a2a_request),
+                media_type='text/event-stream',
             )
         else:
             raise NotImplementedError(f'Method {a2a_request["method"]} not implemented.')

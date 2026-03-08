@@ -61,11 +61,13 @@ The flow:
 from __future__ import annotations as _annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import Any
 
 from .broker import Broker
+from .event_bus import EventBus
 from .schema import (
     CancelTaskRequest,
     CancelTaskResponse,
@@ -80,14 +82,19 @@ from .schema import (
     ListTasksRequest,
     ListTasksResponse,
     PushNotificationNotSupportedError,
+    ResubscribeTaskRequest,
     SendMessageRequest,
     SendMessageResponse,
     SendMessageResult,
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
+    StreamMessageRequest,
+    StreamMessageResponse,
+    StreamResponse,
     TaskNotFoundError,
     TaskSendParams,
     UnsupportedOperationError,
+    stream_message_response_ta,
 )
 from .storage import Storage
 
@@ -98,6 +105,7 @@ class TaskManager:
 
     broker: Broker
     storage: Storage[Any]
+    event_bus: EventBus = field(default_factory=EventBus)
 
     _aexit_stack: AsyncExitStack | None = field(default=None, init=False)
 
@@ -162,6 +170,67 @@ class TaskManager:
                 error=TaskNotFoundError(code=-32001, message='Task not found'),
             )
         return CancelTaskResponse(jsonrpc='2.0', id=request['id'], result=task)
+
+    async def stream_message(self, request: StreamMessageRequest) -> AsyncIterator[bytes]:
+        """Stream a message response as SSE events."""
+        request_id = request['id']
+        message = request['params']['message']
+        context_id = message.get('context_id', str(uuid.uuid4()))
+
+        task = await self.storage.submit_task(context_id, message)
+        task_id = task['id']
+
+        broker_params: TaskSendParams = {'id': task_id, 'context_id': context_id, 'message': message}
+        config = request['params'].get('configuration', {})
+        history_length = config.get('history_length')
+        if history_length is not None:
+            broker_params['history_length'] = history_length
+
+        async with self.event_bus.subscribe(task_id) as receive_stream:
+            await self.broker.run_task(broker_params)
+
+            # Send initial task state
+            initial_response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=StreamResponse(task=task))
+            yield self._format_sse_event(initial_response)
+
+            async for event in receive_stream:
+                response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=event)
+                yield self._format_sse_event(response)
+
+    async def resubscribe_task(self, request: ResubscribeTaskRequest) -> AsyncIterator[bytes]:
+        """Resubscribe to an existing task's event stream."""
+        request_id = request['id']
+        task_id = request['params']['id']
+
+        task = await self.storage.load_task(task_id)
+        if task is None:
+            error_response = StreamMessageResponse(
+                jsonrpc='2.0',
+                id=request_id,
+                error=TaskNotFoundError(code=-32001, message='Task not found'),
+            )
+            yield self._format_sse_event(error_response)
+            return
+
+        # Send current task state
+        initial_response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=StreamResponse(task=task))
+        yield self._format_sse_event(initial_response)
+
+        # If task is already in a terminal state, no need to subscribe
+        terminal_states = {'completed', 'canceled', 'failed', 'rejected'}
+        if task['status']['state'] in terminal_states:
+            return
+
+        async with self.event_bus.subscribe(task_id) as receive_stream:
+            async for event in receive_stream:
+                response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=event)
+                yield self._format_sse_event(response)
+
+    @staticmethod
+    def _format_sse_event(response: StreamMessageResponse) -> bytes:
+        """Format a StreamMessageResponse as an SSE event."""
+        data = stream_message_response_ta.dump_json(response, by_alias=True)
+        return b'data: ' + data + b'\n\n'
 
     async def set_task_push_notification(
         self, request: SetTaskPushNotificationRequest
