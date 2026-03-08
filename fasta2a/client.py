@@ -1,6 +1,7 @@
 from __future__ import annotations as _annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pydantic
@@ -13,9 +14,13 @@ from .schema import (
     MessageSendParams,
     SendMessageRequest,
     SendMessageResponse,
+    StreamMessageRequest,
+    StreamMessageResponse,
     a2a_request_ta,
     send_message_request_ta,
     send_message_response_ta,
+    stream_message_request_ta,
+    stream_message_response_ta,
 )
 
 get_task_response_ta = pydantic.TypeAdapter(GetTaskResponse)
@@ -62,6 +67,34 @@ class A2AClient:
         self._raise_for_status(response)
 
         return send_message_response_ta.validate_json(response.content)
+
+    async def stream_message(
+        self,
+        message: Message,
+        *,
+        metadata: dict[str, Any] | None = None,
+        configuration: MessageSendConfiguration | None = None,
+    ) -> AsyncIterator[StreamMessageResponse]:
+        """Stream a message using SSE.
+
+        Yields StreamMessageResponse objects as they arrive.
+        """
+        params = MessageSendParams(message=message)
+        if metadata is not None:
+            params['metadata'] = metadata
+        if configuration is not None:
+            params['configuration'] = configuration
+
+        request_id = str(uuid.uuid4())
+        payload = StreamMessageRequest(jsonrpc='2.0', id=request_id, method='message/stream', params=params)
+        content = stream_message_request_ta.dump_json(payload, by_alias=True)
+        async with self.http_client.stream(
+            'POST', '/', content=content, headers={'Content-Type': 'application/json'}
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith('data: '):
+                    data = line[6:]
+                    yield stream_message_response_ta.validate_json(data)
 
     async def get_task(self, task_id: str) -> GetTaskResponse:
         payload = GetTaskRequest(jsonrpc='2.0', id=None, method='tasks/get', params={'id': task_id})
