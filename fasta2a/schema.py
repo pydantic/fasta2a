@@ -523,6 +523,7 @@ class Part(TypedDict):
     metadata: NotRequired[dict[str, Any]]
     """Optional metadata associated with this part."""
 
+
 TaskState: TypeAlias = Literal[
     'submitted', 'working', 'input-required', 'completed', 'canceled', 'failed', 'rejected', 'auth-required'
 ]
