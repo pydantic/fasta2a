@@ -67,7 +67,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .broker import Broker
-from .event_bus import EventBus
 from .schema import (
     CancelTaskRequest,
     CancelTaskResponse,
@@ -105,7 +104,6 @@ class TaskManager:
 
     broker: Broker
     storage: Storage[Any]
-    event_bus: EventBus = field(default_factory=EventBus)
 
     _aexit_stack: AsyncExitStack | None = field(default=None, init=False)
 
@@ -186,7 +184,7 @@ class TaskManager:
         if history_length is not None:
             broker_params['history_length'] = history_length
 
-        async with self.event_bus.subscribe(task_id) as receive_stream:
+        async with self.broker.event_bus.subscribe(task_id) as receive_stream:
             await self.broker.run_task(broker_params)
 
             # Send initial task state
@@ -221,7 +219,7 @@ class TaskManager:
         if task['status']['state'] in terminal_states:
             return
 
-        async with self.event_bus.subscribe(task_id) as receive_stream:
+        async with self.broker.event_bus.subscribe(task_id) as receive_stream:
             async for event in receive_stream:
                 response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=event)
                 yield self._format_sse_event(response)

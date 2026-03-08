@@ -3,7 +3,7 @@ from __future__ import annotations as _annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 import anyio
@@ -11,6 +11,7 @@ from opentelemetry.trace import Span, get_current_span, get_tracer
 from pydantic import Discriminator
 from typing_extensions import Self, TypedDict
 
+from .event_bus import EventBus
 from .schema import TaskIdParams, TaskSendParams
 
 tracer = get_tracer(__name__)
@@ -26,6 +27,8 @@ class Broker(ABC):
     runs the tasks in the same process as the HTTP server. That said, this class can be
     extended to support remote workers.
     """
+
+    event_bus: EventBus = field(default_factory=EventBus)
 
     @abstractmethod
     async def run_task(self, params: TaskSendParams) -> None:

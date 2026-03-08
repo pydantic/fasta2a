@@ -13,7 +13,6 @@ from starlette.routing import Route
 from starlette.types import ExceptionHandler, Lifespan, Receive, Scope, Send
 
 from .broker import Broker
-from .event_bus import EventBus
 from .schema import (
     A2AResponse,
     AgentCapabilities,
@@ -37,7 +36,6 @@ class FastA2A(Starlette):
         *,
         storage: Storage,
         broker: Broker,
-        event_bus: EventBus | None = None,
         # Agent card
         name: str | None = None,
         url: str = 'http://localhost:8000',
@@ -75,8 +73,7 @@ class FastA2A(Starlette):
         self.default_input_modes = ['application/json']
         self.default_output_modes = ['application/json']
 
-        self.event_bus = event_bus or EventBus()
-        self.task_manager = TaskManager(broker=broker, storage=storage, event_bus=self.event_bus)
+        self.task_manager = TaskManager(broker=broker, storage=storage)
 
         # Setup
         self._agent_card_json_schema: bytes | None = None
