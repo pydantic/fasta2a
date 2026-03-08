@@ -818,7 +818,7 @@ StreamMessageRequest = JSONRPCRequest[Literal['message/stream'], MessageSendPara
 
 @pydantic.with_config({'alias_generator': to_camel})
 class StreamResponse(TypedDict):
-    """A wrapper for streaming response data with mutually exclusive fields."""
+    """A wrapper object used in streaming operations to encapsulate different types of response data."""
 
     message: NotRequired[Message]
     """A Message object containing a message from the agent."""
