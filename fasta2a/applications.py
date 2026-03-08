@@ -162,7 +162,7 @@ class FastA2A(Starlette):
                 error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
             )
         else:
-            raise ValueError(f'Unknown method: {a2a_request["method"]}')
+            raise NotImplementedError(f'Method {a2a_request["method"]} not implemented.')
         return Response(
             content=a2a_response_ta.dump_json(jsonrpc_response, by_alias=True), media_type='application/json'
         )
