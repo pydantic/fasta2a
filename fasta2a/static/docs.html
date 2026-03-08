@@ -555,7 +555,7 @@
                     <div class="info-value">${agentCard.version}</div>
 
                     <div class="info-label">URL:</div>
-                    <div class="info-value">${agentCard.url}</div>
+                    <div class="info-value">${agentCard.supportedInterfaces?.[0]?.url ?? 'N/A'}</div>
 
                     <div class="info-label">Input Modes:</div>
                     <div class="info-value">${agentCard.defaultInputModes.join(', ')}</div>

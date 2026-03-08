@@ -16,6 +16,7 @@ from .broker import Broker
 from .schema import (
     AgentCapabilities,
     AgentCard,
+    AgentInterface,
     AgentProvider,
     Skill,
     a2a_request_ta,
@@ -93,8 +94,10 @@ class FastA2A(Starlette):
             agent_card = AgentCard(
                 name=self.name,
                 description=self.description or 'An AI agent exposed as an A2A agent.',
-                url=self.url,
                 version=self.version,
+                supported_interfaces=[
+                    AgentInterface(protocol_binding='JSONRPC', url=self.url, protocol_version='1.0'),
+                ],
                 skills=self.skills,
                 default_input_modes=self.default_input_modes,
                 default_output_modes=self.default_output_modes,

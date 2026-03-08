@@ -24,9 +24,6 @@ class AgentCard(TypedDict):
     (e.g. "Agent that helps users with recipes and cooking.")
     """
 
-    url: str
-    """A URL to the address the agent is hosted at."""
-
     version: str
     """The version of the agent - format is up to the provider. (e.g. "1.0.0")"""
 

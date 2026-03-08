@@ -31,8 +31,14 @@ async def test_agent_card():
             {
                 'name': 'My Agent',
                 'description': 'An AI agent exposed as an A2A agent.',
-                'url': 'http://localhost:8000',
                 'version': '1.0.0',
+                'supportedInterfaces': [
+                    {
+                        'protocolBinding': 'JSONRPC',
+                        'url': 'http://localhost:8000',
+                        'protocolVersion': '1.0',
+                    },
+                ],
                 'skills': [],
                 'defaultInputModes': ['application/json'],
                 'defaultOutputModes': ['application/json'],
