@@ -946,6 +946,9 @@ DeleteTaskPushNotificationConfigRequest = JSONRPCRequest[
 ]
 """A JSON RPC request to delete a task push notification config."""
 
+DeleteTaskPushNotificationConfigResponse = JSONRPCResponse[None, PushNotificationNotSupportedError]
+"""A JSON RPC response to delete a task push notification config."""
+
 ListTasksRequest = JSONRPCRequest[Literal['tasks/list'], ListTasksParams]
 """A JSON RPC request to list tasks."""
 
@@ -977,6 +980,7 @@ A2AResponse: TypeAlias = Union[
     SetTaskPushNotificationResponse,
     GetTaskPushNotificationResponse,
     ListTaskPushNotificationConfigResponse,
+    DeleteTaskPushNotificationConfigResponse,
     ListTasksResponse,
 ]
 """A JSON RPC response from the A2A server."""

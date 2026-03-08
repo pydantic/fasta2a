@@ -69,20 +69,25 @@ from .broker import Broker
 from .schema import (
     CancelTaskRequest,
     CancelTaskResponse,
+    DeleteTaskPushNotificationConfigRequest,
+    DeleteTaskPushNotificationConfigResponse,
     GetTaskPushNotificationRequest,
     GetTaskPushNotificationResponse,
     GetTaskRequest,
     GetTaskResponse,
-    ResubscribeTaskRequest,
+    ListTaskPushNotificationConfigRequest,
+    ListTaskPushNotificationConfigResponse,
+    ListTasksRequest,
+    ListTasksResponse,
+    PushNotificationNotSupportedError,
     SendMessageRequest,
     SendMessageResponse,
     SendMessageResult,
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
-    StreamMessageRequest,
-    StreamMessageResponse,
     TaskNotFoundError,
     TaskSendParams,
+    UnsupportedOperationError,
 )
 from .storage import Storage
 
@@ -158,19 +163,45 @@ class TaskManager:
             )
         return CancelTaskResponse(jsonrpc='2.0', id=request['id'], result=task)
 
-    async def stream_message(self, request: StreamMessageRequest) -> StreamMessageResponse:
-        """Stream messages using Server-Sent Events."""
-        raise NotImplementedError('message/stream method is not implemented yet.')
-
     async def set_task_push_notification(
         self, request: SetTaskPushNotificationRequest
     ) -> SetTaskPushNotificationResponse:
-        raise NotImplementedError('SetTaskPushNotification is not implemented yet.')
+        return SetTaskPushNotificationResponse(
+            jsonrpc='2.0',
+            id=request['id'],
+            error=PushNotificationNotSupportedError(code=-32003, message='Push notification not supported'),
+        )
 
     async def get_task_push_notification(
         self, request: GetTaskPushNotificationRequest
     ) -> GetTaskPushNotificationResponse:
-        raise NotImplementedError('GetTaskPushNotification is not implemented yet.')
+        return GetTaskPushNotificationResponse(
+            jsonrpc='2.0',
+            id=request['id'],
+            error=PushNotificationNotSupportedError(code=-32003, message='Push notification not supported'),
+        )
 
-    async def resubscribe_task(self, request: ResubscribeTaskRequest) -> None:
-        raise NotImplementedError('Resubscribe is not implemented yet.')
+    async def list_task_push_notification_configs(
+        self, request: ListTaskPushNotificationConfigRequest
+    ) -> ListTaskPushNotificationConfigResponse:
+        return ListTaskPushNotificationConfigResponse(
+            jsonrpc='2.0',
+            id=request['id'],
+            error=PushNotificationNotSupportedError(code=-32003, message='Push notification not supported'),
+        )
+
+    async def delete_task_push_notification_config(
+        self, request: DeleteTaskPushNotificationConfigRequest
+    ) -> DeleteTaskPushNotificationConfigResponse:
+        return DeleteTaskPushNotificationConfigResponse(
+            jsonrpc='2.0',
+            id=request['id'],
+            error=PushNotificationNotSupportedError(code=-32003, message='Push notification not supported'),
+        )
+
+    async def list_tasks(self, request: ListTasksRequest) -> ListTasksResponse:
+        return ListTasksResponse(
+            jsonrpc='2.0',
+            id=request['id'],
+            error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
+        )
