@@ -90,7 +90,7 @@ class InMemoryStorage(Storage[ContextT]):
         message['context_id'] = context_id
 
         task_status = TaskStatus(state='submitted', timestamp=datetime.now().isoformat())
-        task = Task(id=task_id, context_id=context_id, kind='task', status=task_status, history=[message])
+        task = Task(id=task_id, context_id=context_id, status=task_status, history=[message])
         self.tasks[task_id] = task
 
         return task

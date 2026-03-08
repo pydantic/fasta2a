@@ -395,12 +395,6 @@ class Artifact(TypedDict):
     extensions: NotRequired[list[str]]
     """Array of extensions."""
 
-    append: NotRequired[bool]
-    """Whether to append this artifact to an existing one."""
-
-    last_chunk: NotRequired[bool]
-    """Whether this is the last chunk of the artifact."""
-
 
 @pydantic.with_config({'alias_generator': to_camel})
 class PushNotificationConfig(TypedDict):
@@ -480,13 +474,9 @@ class Message(TypedDict):
     parts: list[Part]
     """The parts of the message."""
 
-    kind: Literal['message']
-    """Event type."""
-
     metadata: NotRequired[dict[str, Any]]
     """Metadata about the message."""
 
-    # Additional fields
     message_id: str
     """Identifier created by the message creator."""
 
@@ -503,75 +493,38 @@ class Message(TypedDict):
     """Array of extensions."""
 
 
-class _BasePart(TypedDict):
-    """A base class for all parts."""
+@pydantic.with_config({'alias_generator': to_camel})
+class Part(TypedDict):
+    """A container for a section of communication content.
+
+    Parts can be textual, a file (image, video, etc), or structured data.
+    Fields are mutually exclusive: use `text` for text content, `raw`/`url` for file content,
+    or `data` for structured JSON data.
+    """
+
+    text: NotRequired[str]
+    """The string content of the text part."""
+
+    raw: NotRequired[str]
+    """The raw byte content of a file, base64-encoded."""
+
+    url: NotRequired[str]
+    """A URL pointing to the file's content."""
+
+    data: NotRequired[Any]
+    """Arbitrary structured data as a JSON value."""
+
+    filename: NotRequired[str]
+    """An optional filename for the file (e.g., 'document.pdf')."""
+
+    media_type: NotRequired[str]
+    """The MIME type of the part content (e.g., 'text/plain', 'application/json', 'image/png')."""
 
     metadata: NotRequired[dict[str, Any]]
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class TextPart(_BasePart):
-    """A part that contains text."""
-
-    kind: Literal['text']
-    """The kind of the part."""
-
-    text: str
-    """The text of the part."""
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class FileWithBytes(TypedDict):
-    """File with base64 encoded data."""
-
-    bytes: str
-    """The base64 encoded content of the file."""
-
-    mime_type: NotRequired[str]
-    """Optional mime type for the file."""
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class FileWithUri(TypedDict):
-    """File with URI reference."""
-
-    uri: str
-    """The URI of the file."""
-
-    mime_type: NotRequired[str]
-    """The mime type of the file."""
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class FilePart(_BasePart):
-    """A part that contains a file."""
-
-    kind: Literal['file']
-    """The kind of the part."""
-
-    file: FileWithBytes | FileWithUri
-    """The file content - either bytes or URI."""
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class DataPart(_BasePart):
-    """A part that contains structured data."""
-
-    kind: Literal['data']
-    """The kind of the part."""
-
-    data: dict[str, Any]
-    """The data of the part."""
-
-
-Part = Annotated[Union[TextPart, FilePart, DataPart], pydantic.Field(discriminator='kind')]
-"""A fully formed piece of content exchanged between a client and a remote agent as part of a Message or an Artifact.
-
-Each Part has its own content type and metadata.
-"""
+    """Optional metadata associated with this part."""
 
 TaskState: TypeAlias = Literal[
-    'submitted', 'working', 'input-required', 'completed', 'canceled', 'failed', 'rejected', 'auth-required', 'unknown'
+    'submitted', 'working', 'input-required', 'completed', 'canceled', 'failed', 'rejected', 'auth-required'
 ]
 """The possible states of a task."""
 
@@ -604,9 +557,6 @@ class Task(TypedDict):
     context_id: str
     """The context the task is associated with."""
 
-    kind: Literal['task']
-    """Event type."""
-
     status: TaskStatus
     """Current status of the task."""
 
@@ -630,9 +580,6 @@ class TaskStatusUpdateEvent(TypedDict):
     context_id: str
     """The context the task is associated with."""
 
-    kind: Literal['status-update']
-    """Event type."""
-
     status: TaskStatus
     """The status of the task."""
 
@@ -652,9 +599,6 @@ class TaskArtifactUpdateEvent(TypedDict):
 
     context_id: str
     """The context the task is associated with."""
-
-    kind: Literal['artifact-update']
-    """Event type identification."""
 
     artifact: Artifact
     """The artifact that was updated."""
