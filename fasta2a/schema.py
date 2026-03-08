@@ -396,63 +396,37 @@ class Artifact(TypedDict):
     """Array of extensions."""
 
 
-@pydantic.with_config({'alias_generator': to_camel})
-class PushNotificationConfig(TypedDict):
-    """Configuration for push notifications.
+class AuthenticationInfo(TypedDict):
+    """Defines authentication details, used for push notifications."""
 
-    A2A supports a secure notification mechanism whereby an agent can notify a client of an update
-    outside a connected session via a PushNotificationService. Within and across enterprises,
-    it is critical that the agent verifies the identity of the notification service, authenticates
-    itself with the service, and presents an identifier that ties the notification to the executing
-    Task.
-
-    The target server of the PushNotificationService should be considered a separate service, and
-    is not guaranteed (or even expected) to be the client directly. This PushNotificationService is
-    responsible for authenticating and authorizing the agent and for proxying the verified notification
-    to the appropriate endpoint (which could be anything from a pub/sub queue, to an email inbox or
-    other service, etc.).
-
-    For contrived scenarios with isolated client-agent pairs (e.g. local service mesh in a contained
-    VPC, etc.) or isolated environments without enterprise security concerns, the client may choose to
-    simply open a port and act as its own PushNotificationService. Any enterprise implementation will
-    likely have a centralized service that authenticates the remote agents with trusted notification
-    credentials and can handle online/offline scenarios. (This should be thought of similarly to a
-    mobile Push Notification Service).
-    """
-
-    id: NotRequired[str]
-    """Server-assigned identifier."""
-
-    url: str
-    """The URL to send push notifications to."""
-
-    token: NotRequired[str]
-    """Token unique to this task/session."""
-
-    authentication: NotRequired[PushNotificationAuthenticationInfo]
-    """Authentication details for push notifications."""
-
-
-@pydantic.with_config({'alias_generator': to_camel})
-class PushNotificationAuthenticationInfo(TypedDict):
-    """Authentication information for push notifications."""
-
-    schemes: list[str]
-    """A list of supported authentication schemes (e.g., 'Basic', 'Bearer')."""
+    scheme: str
+    """HTTP Authentication Scheme (e.g., 'Bearer', 'Basic', 'Digest')."""
 
     credentials: NotRequired[str]
-    """Optional credentials required by the push notification endpoint."""
+    """Push notification credentials. Format depends on the scheme (e.g., token for Bearer)."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
 class TaskPushNotificationConfig(TypedDict):
-    """Configuration for task push notifications."""
+    """A container associating a push notification configuration with a specific task."""
 
-    id: str
-    """The task id."""
+    id: NotRequired[str]
+    """A unique identifier (e.g. UUID) for this push notification configuration."""
 
-    push_notification_config: PushNotificationConfig
-    """The push notification configuration."""
+    task_id: NotRequired[str]
+    """The ID of the task this configuration is associated with."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
+
+    url: str
+    """The URL where the notification should be sent."""
+
+    token: NotRequired[str]
+    """A token unique for this task or session."""
+
+    authentication: NotRequired[AuthenticationInfo]
+    """Authentication information required to send the notification."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -634,6 +608,52 @@ class TaskQueryParams(TaskIdParams):
 
 
 @pydantic.with_config({'alias_generator': to_camel})
+class ListTasksParams(TypedDict):
+    """Parameters for listing tasks with optional filtering criteria."""
+
+    context_id: NotRequired[str]
+    """Filter tasks by context ID."""
+
+    status: NotRequired[TaskState]
+    """Filter tasks by their current status state."""
+
+    status_timestamp_after: NotRequired[str]
+    """Filter tasks with status updated after this ISO 8601 timestamp."""
+
+    history_length: NotRequired[int]
+    """The maximum number of messages to include in each task's history."""
+
+    include_artifacts: NotRequired[bool]
+    """Whether to include artifacts in the returned tasks. Defaults to false."""
+
+    page_size: NotRequired[int]
+    """The maximum number of tasks to return (1-100, default 50)."""
+
+    page_token: NotRequired[str]
+    """A page token from a previous `ListTasks` call for pagination."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class ListTasksResult(TypedDict):
+    """Result for listing tasks with pagination information."""
+
+    tasks: list[Task]
+    """Array of tasks matching the specified criteria."""
+
+    next_page_token: NotRequired[str]
+    """A token to retrieve the next page of results."""
+
+    page_size: NotRequired[int]
+    """The page size used for this response."""
+
+    total_size: NotRequired[int]
+    """Total number of tasks available (before pagination)."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
 class MessageSendConfiguration(TypedDict):
     """Configuration for the send message request."""
 
@@ -646,8 +666,8 @@ class MessageSendConfiguration(TypedDict):
     history_length: NotRequired[int]
     """Number of recent messages to be retrieved."""
 
-    push_notification_config: NotRequired[PushNotificationConfig]
-    """Where the server should send notifications when disconnected."""
+    task_push_notification_config: NotRequired[TaskPushNotificationConfig]
+    """Configuration for the agent to send push notifications for task updates."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
@@ -689,28 +709,59 @@ class TaskSendParams(TypedDict):
 
 
 @pydantic.with_config({'alias_generator': to_camel})
-class ListTaskPushNotificationConfigParams(TypedDict):
-    """Parameters for getting list of pushNotificationConfigurations associated with a Task."""
+class GetTaskPushNotificationConfigParams(TypedDict):
+    """Parameters for getting a push notification configuration."""
 
     id: str
-    """Task id."""
+    """The resource ID of the configuration to retrieve."""
 
-    metadata: NotRequired[dict[str, Any]]
-    """Extension metadata."""
+    task_id: str
+    """The parent task resource ID."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class ListTaskPushNotificationConfigParams(TypedDict):
+    """Parameters for listing push notification configurations associated with a task."""
+
+    task_id: str
+    """The parent task resource ID."""
+
+    page_size: NotRequired[int]
+    """The maximum number of configurations to return."""
+
+    page_token: NotRequired[str]
+    """A page token received from a previous request."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
+
+
+@pydantic.with_config({'alias_generator': to_camel})
+class ListTaskPushNotificationConfigResult(TypedDict):
+    """Result for listing push notification configurations."""
+
+    configs: list[TaskPushNotificationConfig]
+    """The list of push notification configurations."""
+
+    next_page_token: NotRequired[str]
+    """A token to retrieve the next page of results."""
 
 
 @pydantic.with_config({'alias_generator': to_camel})
 class DeleteTaskPushNotificationConfigParams(TypedDict):
-    """Parameters for removing pushNotificationConfiguration associated with a Task."""
+    """Parameters for removing a push notification configuration associated with a task."""
 
     id: str
-    """Task id."""
+    """The resource ID of the configuration to delete."""
 
-    push_notification_config_id: str
-    """The push notification config id to delete."""
+    task_id: str
+    """The parent task resource ID."""
 
-    metadata: NotRequired[dict[str, Any]]
-    """Extension metadata."""
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
 
 
 class JSONRPCMessage(TypedDict):
@@ -854,7 +905,9 @@ SetTaskPushNotificationRequest = JSONRPCRequest[Literal['tasks/pushNotification/
 SetTaskPushNotificationResponse = JSONRPCResponse[TaskPushNotificationConfig, PushNotificationNotSupportedError]
 """A JSON RPC response to set a task push notification."""
 
-GetTaskPushNotificationRequest = JSONRPCRequest[Literal['tasks/pushNotification/get'], TaskIdParams]
+GetTaskPushNotificationRequest = JSONRPCRequest[
+    Literal['tasks/pushNotification/get'], GetTaskPushNotificationConfigParams
+]
 """A JSON RPC request to get a task push notification."""
 
 GetTaskPushNotificationResponse = JSONRPCResponse[TaskPushNotificationConfig, PushNotificationNotSupportedError]
@@ -868,10 +921,21 @@ ListTaskPushNotificationConfigRequest = JSONRPCRequest[
 ]
 """A JSON RPC request to list task push notification configs."""
 
+ListTaskPushNotificationConfigResponse = JSONRPCResponse[
+    ListTaskPushNotificationConfigResult, PushNotificationNotSupportedError
+]
+"""A JSON RPC response to list task push notification configs."""
+
 DeleteTaskPushNotificationConfigRequest = JSONRPCRequest[
     Literal['tasks/pushNotificationConfig/delete'], DeleteTaskPushNotificationConfigParams
 ]
 """A JSON RPC request to delete a task push notification config."""
+
+ListTasksRequest = JSONRPCRequest[Literal['tasks/list'], ListTasksParams]
+"""A JSON RPC request to list tasks."""
+
+ListTasksResponse = JSONRPCResponse[ListTasksResult, JSONRPCError[Any, Any]]
+"""A JSON RPC response to list tasks."""
 
 A2ARequest = Annotated[
     Union[
@@ -884,6 +948,7 @@ A2ARequest = Annotated[
         ResubscribeTaskRequest,
         ListTaskPushNotificationConfigRequest,
         DeleteTaskPushNotificationConfigRequest,
+        ListTasksRequest,
     ],
     Discriminator('method'),
 ]
@@ -896,6 +961,8 @@ A2AResponse: TypeAlias = Union[
     CancelTaskResponse,
     SetTaskPushNotificationResponse,
     GetTaskPushNotificationResponse,
+    ListTaskPushNotificationConfigResponse,
+    ListTasksResponse,
 ]
 """A JSON RPC response from the A2A server."""
 
