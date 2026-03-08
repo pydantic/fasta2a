@@ -285,7 +285,7 @@ class SecurityRequirement(TypedDict):
 class AgentInterface(TypedDict):
     """An interface that the agent supports."""
 
-    protocol_binding: str
+    protocol_binding: Literal['JSONRPC', 'GRPC', 'HTTP+JSON'] | str
     """The protocol binding (e.g., 'JSONRPC', 'GRPC', 'HTTP+JSON')."""
 
     url: str
