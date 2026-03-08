@@ -76,6 +76,7 @@ from .schema import (
     ResubscribeTaskRequest,
     SendMessageRequest,
     SendMessageResponse,
+    SendMessageResult,
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
     StreamMessageRequest,
@@ -127,7 +128,8 @@ class TaskManager:
             broker_params['history_length'] = history_length
 
         await self.broker.run_task(broker_params)
-        return SendMessageResponse(jsonrpc='2.0', id=request_id, result=task)
+        result = SendMessageResult(task=task)
+        return SendMessageResponse(jsonrpc='2.0', id=request_id, result=result)
 
     async def get_task(self, request: GetTaskRequest) -> GetTaskResponse:
         """Get a task, and return it to the client.

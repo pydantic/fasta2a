@@ -558,9 +558,6 @@ class TaskStatusUpdateEvent(TypedDict):
     status: TaskStatus
     """The status of the task."""
 
-    final: bool
-    """Indicates the end of the event stream."""
-
     metadata: NotRequired[dict[str, Any]]
     """Extension metadata."""
 
@@ -594,6 +591,9 @@ class TaskIdParams(TypedDict):
 
     id: str
     """The unique identifier for the task."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
 
     metadata: NotRequired[dict[str, Any]]
     """Optional metadata associated with the request."""
@@ -679,6 +679,9 @@ class MessageSendParams(TypedDict):
 
     message: Message
     """The message being sent to the server."""
+
+    tenant: NotRequired[str]
+    """Optional. Tenant ID."""
 
     metadata: NotRequired[dict[str, Any]]
     """Extension metadata."""
@@ -860,7 +863,19 @@ InvalidAgentResponseError = JSONRPCError[Literal[-32006], Literal['Invalid agent
 SendMessageRequest = JSONRPCRequest[Literal['message/send'], MessageSendParams]
 """A JSON RPC request to send a message."""
 
-SendMessageResponse = JSONRPCResponse[Union[Task, Message], JSONRPCError[Any, Any]]
+
+@pydantic.with_config({'alias_generator': to_camel})
+class SendMessageResult(TypedDict):
+    """The result of a SendMessage request."""
+
+    message: NotRequired[Message]
+    """A message from the agent."""
+
+    task: NotRequired[Task]
+    """The task created or updated by the message."""
+
+
+SendMessageResponse = JSONRPCResponse[SendMessageResult, JSONRPCError[Any, Any]]
 """A JSON RPC response to send a message."""
 
 StreamMessageRequest = JSONRPCRequest[Literal['message/stream'], MessageSendParams]
