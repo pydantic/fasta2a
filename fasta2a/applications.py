@@ -3,7 +3,7 @@ from __future__ import annotations as _annotations
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -19,16 +19,7 @@ from .schema import (
     AgentCard,
     AgentInterface,
     AgentProvider,
-    CancelTaskRequest,
-    DeleteTaskPushNotificationConfigRequest,
-    GetTaskPushNotificationRequest,
-    GetTaskRequest,
-    ListTaskPushNotificationConfigRequest,
-    ListTasksRequest,
-    MethodNotFoundError,
-    SendMessageRequest,
     SendMessageResponse,
-    SetTaskPushNotificationRequest,
     Skill,
     UnsupportedOperationError,
     a2a_request_ta,
@@ -140,45 +131,36 @@ class FastA2A(Starlette):
         """
         data = await request.body()
         a2a_request = a2a_request_ta.validate_json(data)
-        method = a2a_request['method']
-        request_id = a2a_request['id']
 
         jsonrpc_response: A2AResponse
-        if method == 'message/send':
-            jsonrpc_response = await self.task_manager.send_message(cast(SendMessageRequest, a2a_request))
-        elif method == 'tasks/get':
-            jsonrpc_response = await self.task_manager.get_task(cast(GetTaskRequest, a2a_request))
-        elif method == 'tasks/cancel':
-            jsonrpc_response = await self.task_manager.cancel_task(cast(CancelTaskRequest, a2a_request))
-        elif method == 'tasks/pushNotification/set':
-            jsonrpc_response = await self.task_manager.set_task_push_notification(
-                cast(SetTaskPushNotificationRequest, a2a_request)
-            )
-        elif method == 'tasks/pushNotification/get':
-            jsonrpc_response = await self.task_manager.get_task_push_notification(
-                cast(GetTaskPushNotificationRequest, a2a_request)
-            )
-        elif method == 'tasks/pushNotificationConfig/list':
-            jsonrpc_response = await self.task_manager.list_task_push_notification_configs(
-                cast(ListTaskPushNotificationConfigRequest, a2a_request)
-            )
-        elif method == 'tasks/pushNotificationConfig/delete':
-            jsonrpc_response = await self.task_manager.delete_task_push_notification_config(
-                cast(DeleteTaskPushNotificationConfigRequest, a2a_request)
-            )
-        elif method == 'tasks/list':
-            jsonrpc_response = await self.task_manager.list_tasks(cast(ListTasksRequest, a2a_request))
-        elif method in ('message/stream', 'tasks/resubscribe'):
+        if a2a_request['method'] == 'message/send':
+            jsonrpc_response = await self.task_manager.send_message(a2a_request)
+        elif a2a_request['method'] == 'tasks/get':
+            jsonrpc_response = await self.task_manager.get_task(a2a_request)
+        elif a2a_request['method'] == 'tasks/cancel':
+            jsonrpc_response = await self.task_manager.cancel_task(a2a_request)
+        elif a2a_request['method'] == 'tasks/pushNotification/set':
+            jsonrpc_response = await self.task_manager.set_task_push_notification(a2a_request)
+        elif a2a_request['method'] == 'tasks/pushNotification/get':
+            jsonrpc_response = await self.task_manager.get_task_push_notification(a2a_request)
+        elif a2a_request['method'] == 'tasks/pushNotificationConfig/list':
+            jsonrpc_response = await self.task_manager.list_task_push_notification_configs(a2a_request)
+        elif a2a_request['method'] == 'tasks/pushNotificationConfig/delete':
+            jsonrpc_response = await self.task_manager.delete_task_push_notification_config(a2a_request)
+        elif a2a_request['method'] == 'tasks/list':
+            jsonrpc_response = await self.task_manager.list_tasks(a2a_request)
+        elif a2a_request['method'] == 'message/stream':
             jsonrpc_response = SendMessageResponse(
                 jsonrpc='2.0',
-                id=request_id,
+                id=a2a_request['id'],
                 error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
             )
         else:
+            assert a2a_request['method'] == 'tasks/resubscribe'
             jsonrpc_response = SendMessageResponse(
                 jsonrpc='2.0',
-                id=request_id,
-                error=MethodNotFoundError(code=-32601, message='Method not found'),
+                id=a2a_request['id'],
+                error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
             )
         return Response(
             content=a2a_response_ta.dump_json(jsonrpc_response, by_alias=True), media_type='application/json'
