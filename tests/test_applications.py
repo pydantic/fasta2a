@@ -43,7 +43,7 @@ async def test_agent_card():
                 'defaultInputModes': ['application/json'],
                 'defaultOutputModes': ['application/json'],
                 'capabilities': {
-                    'streaming': False,
+                    'streaming': True,
                     'pushNotifications': False,
                 },
             }

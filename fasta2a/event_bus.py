@@ -30,9 +30,14 @@ class EventBus:
         try:
             yield receive_stream
         finally:
-            self._subscribers[task_id].remove(send_stream)
-            if not self._subscribers[task_id]:
-                del self._subscribers[task_id]
+            subscribers = self._subscribers.get(task_id)
+            if subscribers is not None:
+                try:
+                    subscribers.remove(send_stream)
+                except ValueError:
+                    pass
+                if not subscribers:
+                    del self._subscribers[task_id]
             await send_stream.aclose()
             await receive_stream.aclose()
 
