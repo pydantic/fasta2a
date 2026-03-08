@@ -155,13 +155,14 @@ class FastA2A(Starlette):
                 id=a2a_request['id'],
                 error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
             )
-        else:
-            assert a2a_request['method'] == 'tasks/resubscribe'
+        elif a2a_request['method'] == 'tasks/resubscribe':
             jsonrpc_response = SendMessageResponse(
                 jsonrpc='2.0',
                 id=a2a_request['id'],
                 error=UnsupportedOperationError(code=-32004, message='This operation is not supported'),
             )
+        else:
+            raise ValueError(f'Unknown method: {a2a_request["method"]}')
         return Response(
             content=a2a_response_ta.dump_json(jsonrpc_response, by_alias=True), media_type='application/json'
         )
