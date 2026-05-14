@@ -120,9 +120,7 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
             raise ValueError(f'Task {params["id"]} not found')
 
         if task['status']['state'] != 'submitted':
-            raise ValueError(
-                f'Task {params["id"]} has already been processed (state: {task["status"]["state"]})'
-            )
+            raise ValueError(f'Task {params["id"]} has already been processed (state: {task["status"]["state"]})')
 
         await self.storage.update_task(task['id'], state='working')
 

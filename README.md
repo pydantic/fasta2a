@@ -107,20 +107,29 @@ we've decided to move it to a separate repository.
 > [!NOTE]
 > Other agentic frameworks are welcome to implement the `Worker` component, and we'll be happy add the reference here.
 
-For reference, you can [check the PydanticAI implementation of the `Worker`](https://github.com/pydantic/pydantic-ai/blob/3ef42ed9a1a2c799bb94a5a69c80aa9e8968ca72/pydantic_ai_slim/pydantic_ai/_a2a.py#L115-L304).
+Install the integration with the `pydantic-ai` extra:
 
-Let's see how to use it in practice:
+```bash
+pip install 'fasta2a[pydantic-ai]'  # or `uv add 'fasta2a[pydantic-ai]'`
+```
+
+Then turn any `pydantic_ai.Agent` into an A2A-compatible ASGI app:
 
 ```python
 from pydantic_ai import Agent
+from fasta2a.pydantic_ai import agent_to_a2a
 
 agent = Agent('openai:gpt-4.1')
-app = agent.to_a2a()
+app = agent_to_a2a(agent)
 ```
 
 _You can run this example as is with `uvicorn main:app --reload`._
 
 As you see, it's pretty easy from the point of view of the developer using your agentic framework.
+
+> [!NOTE]
+> In PydanticAI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
+> warning pointing here. It will be removed in PydanticAI v2.
 
 ## Design
 
