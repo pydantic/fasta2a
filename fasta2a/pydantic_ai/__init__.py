@@ -10,7 +10,7 @@ Usage:
     from pydantic_ai import Agent
     from fasta2a.pydantic_ai import agent_to_a2a
 
-    agent = Agent('openai:gpt-4o')
+    agent = Agent('openai:gpt-5.5')
     app = agent_to_a2a(agent, name='my-agent', url='http://localhost:8000')
 
 Install the integration with the `pydantic-ai` extra:

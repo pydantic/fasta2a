@@ -7,7 +7,7 @@
 [![license](https://img.shields.io/github/license/pydantic/pydantic-ai.svg)](https://github.com/pydantic/pydantic-ai/blob/main/LICENSE)
 
 **FastA2A** is an agentic framework agnostic implementation of the A2A protocol in Python.
-The library is designed to be used with any agentic framework, and is not exclusive to PydanticAI.
+The library is designed to be used with any agentic framework, and is not exclusive to Pydantic AI.
 
 ![Interactive Chat](./assets/docs.png)
 
@@ -99,9 +99,9 @@ app = FastA2A(storage=storage, broker=broker, lifespan=lifespan)
 
 _You can run this example as is with `uvicorn main:app --reload`._
 
-### Using PydanticAI
+### Using Pydantic AI
 
-Initially, this **FastA2A** lived under **PydanticAI** repository, but since we received community feedback,
+Initially, this **FastA2A** lived under **Pydantic AI** repository, but since we received community feedback,
 we've decided to move it to a separate repository.
 
 > [!NOTE]
@@ -119,7 +119,7 @@ Then turn any `pydantic_ai.Agent` into an A2A-compatible ASGI app:
 from pydantic_ai import Agent
 from fasta2a.pydantic_ai import agent_to_a2a
 
-agent = Agent('openai:gpt-4.1')
+agent = Agent('openai:gpt-5.5')
 app = agent_to_a2a(agent)
 ```
 
@@ -128,8 +128,8 @@ _You can run this example as is with `uvicorn main:app --reload`._
 As you see, it's pretty easy from the point of view of the developer using your agentic framework.
 
 > [!NOTE]
-> In PydanticAI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
-> warning pointing here. It will be removed in PydanticAI v2.
+> In Pydantic AI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
+> warning pointing here. It will be removed in Pydantic AI v2.
 
 ## Design
 

@@ -121,3 +121,9 @@ include = [
     "fasta2a",
     "tests",
 ]
+
+# The pydantic-ai bridge is a near-verbatim port of `pydantic_ai._a2a` and
+# inherits its (looser) typing posture; tighten in a follow-up if desired.
+[[tool.pyright.executionEnvironments]]
+root = "fasta2a/pydantic_ai"
+typeCheckingMode = "basic"
