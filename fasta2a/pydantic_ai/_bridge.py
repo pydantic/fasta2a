@@ -35,6 +35,10 @@ except ImportError as _e:
         "e.g. `pip install 'fasta2a[pydantic-ai]'`"
     ) from _e
 
+from starlette.middleware import Middleware
+from starlette.routing import Route
+from starlette.types import ExceptionHandler, Lifespan
+
 from fasta2a.applications import FastA2A
 from fasta2a.broker import Broker, InMemoryBroker
 from fasta2a.schema import (
@@ -50,9 +54,6 @@ from fasta2a.schema import (
 )
 from fasta2a.storage import InMemoryStorage, Storage
 from fasta2a.worker import Worker
-from starlette.middleware import Middleware
-from starlette.routing import Route
-from starlette.types import ExceptionHandler, Lifespan
 
 WorkerOutputT = TypeVar('WorkerOutputT')
 
