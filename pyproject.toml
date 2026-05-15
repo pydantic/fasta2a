@@ -52,6 +52,7 @@ dependencies = [
 
 [project.optional-dependencies]
 logfire = ["logfire>=2.3"]
+pydantic-ai = ["pydantic-ai-slim>=1.92; python_version >= '3.10'"]
 
 [dependency-groups]
 dev = [
