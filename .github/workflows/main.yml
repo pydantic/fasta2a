@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "release/**"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "release/**"]
 
 jobs:
   test:
@@ -21,8 +21,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
+      # `[pydantic-ai]` is the optional extra that pulls `pydantic-ai-slim` for
+      # the `fasta2a.pydantic_ai` bridge tests. Marker-gated to Python 3.10+, so
+      # on 3.9 it resolves to nothing and the bridge tests skip themselves via
+      # `pytest.importorskip('pydantic_ai')` in `tests/test_pydantic_ai.py`.
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra pydantic-ai
 
       - name: Run linters
         run: scripts/check
