@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 else:
     from dirty_equals import IsDatetime, IsNow, IsStr
 
-from pydantic import BaseModel  # noqa: E402
-from pydantic_ai import (  # noqa: E402
+from pydantic import BaseModel
+from pydantic_ai import (
     Agent,
     BinaryContent,
     ModelMessage,
@@ -54,14 +54,14 @@ from pydantic_ai import (  # noqa: E402
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import AgentInfo, FunctionModel  # noqa: E402
-from pydantic_ai.usage import RequestUsage  # noqa: E402
+from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.usage import RequestUsage
 
-from fasta2a.applications import FastA2A  # noqa: E402
-from fasta2a.client import A2AClient  # noqa: E402
-from fasta2a.pydantic_ai import agent_to_a2a  # noqa: E402
-from fasta2a.schema import DataPart, FilePart, Message, TextPart  # noqa: E402
-from fasta2a.storage import InMemoryStorage  # noqa: E402
+from fasta2a.applications import FastA2A
+from fasta2a.client import A2AClient
+from fasta2a.pydantic_ai import agent_to_a2a
+from fasta2a.schema import DataPart, FilePart, Message, TextPart
+from fasta2a.storage import InMemoryStorage
 
 pytestmark = [
     pytest.mark.skipif(sys.version_info < (3, 10), reason='pydantic-ai-slim requires 3.10+'),
