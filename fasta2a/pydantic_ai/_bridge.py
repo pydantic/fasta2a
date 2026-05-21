@@ -9,7 +9,6 @@ from functools import partial
 from typing import Any, Generic, TypeVar
 
 from pydantic import TypeAdapter
-from typing_extensions import assert_never
 
 try:
     from pydantic_ai import (
@@ -46,13 +45,11 @@ from fasta2a.broker import Broker, InMemoryBroker
 from fasta2a.schema import (
     AgentProvider,
     Artifact,
-    DataPart,
     Message,
     Part,
     Skill,
     TaskIdParams,
     TaskSendParams,
-    TextPart as A2ATextPart,
 )
 from fasta2a.storage import InMemoryStorage, Storage
 from fasta2a.worker import Worker
@@ -141,9 +138,7 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
                     continue
                 a2a_parts = self._response_parts_to_a2a(message.parts)
                 if a2a_parts:
-                    a2a_messages.append(
-                        Message(role='agent', parts=a2a_parts, kind='message', message_id=str(uuid.uuid4()))
-                    )
+                    a2a_messages.append(Message(role='agent', parts=a2a_parts, message_id=str(uuid.uuid4())))
 
             artifacts = self.build_artifacts(result.output)
         except Exception:
@@ -164,12 +159,12 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
 
     def _convert_result_to_part(self, result: WorkerOutputT) -> Part:
         if isinstance(result, str):
-            return A2ATextPart(kind='text', text=result)
+            return Part(text=result)
         output_type = type(result)
         type_adapter = TypeAdapter(output_type)
         data = type_adapter.dump_python(result, mode='json')
         json_schema = type_adapter.json_schema(mode='serialization')
-        return DataPart(kind='data', data={'result': data}, metadata={'json_schema': json_schema})
+        return Part(data={'result': data}, metadata={'json_schema': json_schema})
 
     def build_message_history(self, history: list[Message]) -> list[ModelMessage]:
         model_messages: list[ModelMessage] = []
@@ -183,56 +178,53 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
     def _request_parts_from_a2a(self, parts: list[Part]) -> list[ModelRequestPart]:
         model_parts: list[ModelRequestPart] = []
         for part in parts:
-            if part['kind'] == 'text':
+            if 'text' in part:
                 model_parts.append(UserPromptPart(content=part['text']))
-            elif part['kind'] == 'file':
-                file_content = part['file']
-                if 'bytes' in file_content:
-                    data = base64.b64decode(file_content['bytes'])
-                    mime_type = file_content.get('mime_type', 'application/octet-stream')
-                    content = BinaryContent(data=data, media_type=mime_type)
-                    model_parts.append(UserPromptPart(content=[content]))
-                else:
-                    url = file_content['uri']
-                    for url_cls in (DocumentUrl, AudioUrl, ImageUrl, VideoUrl):
-                        content = url_cls(url=url)
-                        try:
-                            content.media_type
-                        except ValueError:
-                            continue
-                        else:
-                            break
+            elif 'raw' in part:
+                data = base64.b64decode(part['raw'])
+                mime_type = part.get('media_type', 'application/octet-stream')
+                content = BinaryContent(data=data, media_type=mime_type)
+                model_parts.append(UserPromptPart(content=[content]))
+            elif 'url' in part:
+                url = part['url']
+                for url_cls in (DocumentUrl, AudioUrl, ImageUrl, VideoUrl):
+                    content = url_cls(url=url)
+                    try:
+                        content.media_type
+                    except ValueError:
+                        continue
                     else:
-                        raise ValueError(f'Unsupported file type: {url}')
-                    model_parts.append(UserPromptPart(content=[content]))
-            elif part['kind'] == 'data':
+                        break
+                else:
+                    raise ValueError(f'Unsupported file type: {url}')
+                model_parts.append(UserPromptPart(content=[content]))
+            elif 'data' in part:
                 raise NotImplementedError('Data parts are not supported yet.')
             else:
-                assert_never(part)
+                raise ValueError(f'Unsupported part: {part}')
         return model_parts
 
     def _response_parts_from_a2a(self, parts: list[Part]) -> list[ModelResponsePart]:
         model_parts: list[ModelResponsePart] = []
         for part in parts:
-            if part['kind'] == 'text':
+            if 'text' in part:
                 model_parts.append(TextPart(content=part['text']))
-            elif part['kind'] == 'file':
+            elif 'raw' in part or 'url' in part:
                 raise NotImplementedError('File parts are not supported yet.')
-            elif part['kind'] == 'data':
+            elif 'data' in part:
                 raise NotImplementedError('Data parts are not supported yet.')
             else:
-                assert_never(part)
+                raise ValueError(f'Unsupported part: {part}')
         return model_parts
 
     def _response_parts_to_a2a(self, parts: Sequence[ModelResponsePart]) -> list[Part]:
         a2a_parts: list[Part] = []
         for part in parts:
             if isinstance(part, TextPart):
-                a2a_parts.append(A2ATextPart(kind='text', text=part.content))
+                a2a_parts.append(Part(text=part.content))
             elif isinstance(part, ThinkingPart):
                 a2a_parts.append(
-                    A2ATextPart(
-                        kind='text',
+                    Part(
                         text=part.content,
                         metadata={'type': 'thinking', 'thinking_id': part.id, 'signature': part.signature},
                     )
