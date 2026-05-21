@@ -7,6 +7,27 @@ on:
     branches: ["main", "release/**"]
 
 jobs:
+  # `scripts/check` (ruff, pyright, check-sdist, uv lock) runs once on a fixed
+  # interpreter. pyright must see `pydantic-ai-slim` to resolve the bridge's
+  # `pydantic_ai` imports, and that extra is marker-gated to Python 3.10+, so
+  # this job pins 3.12 — running it across the test matrix would fail on 3.9.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra pydantic-ai
+
+      - name: Run linters
+        run: scripts/check
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -28,16 +49,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra pydantic-ai
 
-      - name: Run linters
-        run: scripts/check
-
       - name: Run tests
         run: scripts/test
 
   # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
   check:
     if: always()
-    needs: [test]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed
