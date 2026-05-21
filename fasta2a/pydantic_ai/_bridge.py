@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import uuid
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
@@ -28,7 +28,9 @@ try:
         UserPromptPart,
         VideoUrl,
     )
-    from pydantic_ai.agent import AbstractAgent, AgentDepsT, OutputDataT
+    from pydantic_ai._run_context import AgentDepsT
+    from pydantic_ai.agent import AbstractAgent
+    from pydantic_ai.output import OutputDataT
 except ImportError as _e:
     raise ImportError(
         'Please install the `pydantic-ai` package to use `fasta2a.pydantic_ai`, '
@@ -61,7 +63,7 @@ WorkerOutputT = TypeVar('WorkerOutputT')
 @asynccontextmanager
 async def worker_lifespan(
     app: FastA2A, worker: Worker, agent: AbstractAgent[AgentDepsT, OutputDataT]
-) -> AsyncIterator[None]:
+) -> AsyncGenerator[None]:
     """Lifespan that runs the worker during application startup."""
     async with app.task_manager, agent:
         async with worker.run():
