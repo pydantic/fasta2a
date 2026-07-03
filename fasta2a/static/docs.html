@@ -489,7 +489,7 @@
                     <div class="loading">Loading agent information...</div>
                 </div>
                 <div class="agent-card-link">
-                    <a href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer">
+                    <a href="__FASTA2A_API_ROOT__/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer">
                         /.well-known/agent-card.json
                     </a>
                 </div>
@@ -526,11 +526,16 @@
         let agentCard = null;
         let currentTaskId = null;
         let contextId = null;
+        const apiRoot = __FASTA2A_API_ROOT_JSON__;
+
+        function apiUrl(path) {
+            return `${apiRoot}${path}`;
+        }
 
         // Load agent card information
         async function loadAgentCard() {
             try {
-                const response = await fetch('/.well-known/agent-card.json');
+                const response = await fetch(apiUrl('/.well-known/agent-card.json'));
                 if (!response.ok) throw new Error('Failed to load agent card');
 
                 agentCard = await response.json();
@@ -596,7 +601,7 @@
 
             try {
                 // Send message to A2A endpoint
-                const response = await fetch('/', {
+                const response = await fetch(apiUrl('/'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -660,7 +665,7 @@
             if (!currentTaskId) return;
 
             try {
-                const response = await fetch('/', {
+                const response = await fetch(apiUrl('/'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
