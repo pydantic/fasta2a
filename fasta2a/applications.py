@@ -1,5 +1,7 @@
 from __future__ import annotations as _annotations
 
+import html
+import json
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -8,7 +10,7 @@ from typing import Any
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response, StreamingResponse
+from starlette.responses import Response, StreamingResponse
 from starlette.routing import Route
 from starlette.types import ExceptionHandler, Lifespan, Receive, Scope, Send
 
@@ -112,7 +114,11 @@ class FastA2A(Starlette):
     async def _docs_endpoint(self, request: Request) -> Response:
         """Serve the documentation interface."""
         docs_path = Path(__file__).parent / 'static' / 'docs.html'
-        return FileResponse(docs_path, media_type='text/html')
+        root_path = request.scope.get('root_path', '').rstrip('/')
+        content = docs_path.read_text()
+        content = content.replace('__FASTA2A_API_ROOT_JSON__', json.dumps(root_path))
+        content = content.replace('__FASTA2A_API_ROOT__', html.escape(root_path, quote=True))
+        return Response(content=content, media_type='text/html')
 
     async def _agent_run_endpoint(self, request: Request) -> Response:
         """This is the main endpoint for the A2A server.

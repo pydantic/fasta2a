@@ -6,6 +6,7 @@ import httpx
 import pytest
 from asgi_lifespan import LifespanManager
 from inline_snapshot import snapshot
+from starlette.applications import Starlette
 
 from fasta2a.applications import FastA2A
 from fasta2a.broker import InMemoryBroker
@@ -56,12 +57,37 @@ class TestDocsEndpoint:
         async with create_test_client(app) as client:
             response = await client.get('/docs')
             assert response.status_code == 200
+            assert '__FASTA2A_API_ROOT__' not in response.text
+            assert 'const apiRoot = "";' in response.text
 
     async def test_docs_endpoint_custom_url(self):
         app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url='/custom-docs')
         async with create_test_client(app) as client:
             response = await client.get('/custom-docs')
             assert response.status_code == 200
+
+    async def test_docs_endpoint_mounted_app_uses_root_path(self):
+        a2a_app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker())
+
+        @asynccontextmanager
+        async def lifespan(_app: Starlette):
+            async with a2a_app.router.lifespan_context(a2a_app):
+                yield
+
+        app = Starlette(lifespan=lifespan)
+        app.mount('/agent', a2a_app)
+
+        async with LifespanManager(app=app) as manager:
+            transport = httpx.ASGITransport(app=manager.app)
+            async with httpx.AsyncClient(transport=transport, base_url='http://testclient') as client:
+                response = await client.get('/agent/docs')
+                assert response.status_code == 200
+                assert '__FASTA2A_API_ROOT__' not in response.text
+                assert 'const apiRoot = "/agent";' in response.text
+                assert 'href="/agent/.well-known/agent-card.json"' in response.text
+
+                response = await client.get('/agent/.well-known/agent-card.json')
+                assert response.status_code == 200
 
     async def test_docs_endpoint_disabled(self):
         app = FastA2A(storage=InMemoryStorage(), broker=InMemoryBroker(), docs_url=None)
