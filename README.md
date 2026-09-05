@@ -131,6 +131,18 @@ As you see, it's pretty easy from the point of view of the developer using your 
 > In Pydantic AI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
 > warning pointing here. It will be removed in Pydantic AI v2.
 
+#### Streaming
+
+`message/stream` answers with server-sent events: the task first, then whatever the `Worker`
+publishes while it runs — `publish_status` for a change of state, `publish_artifact` for a result,
+whole or chunk by chunk with `append=True` — and the stream ends when the task reaches a final
+state. The worker does not have to publish that end: once `run_task` returns, the task's state is
+read back from storage, published, and the stream closed (`completed`, or `failed` if the run
+raised), so a worker that only writes storage still ends its stream properly.
+
+The Pydantic AI bridge publishes `working` when it starts, the model's text as chunks of the
+answer's artifact while it is written, and the whole artifact as the last chunk.
+
 ## Extensions
 
 An [extension](https://a2a-protocol.org/latest/topics/extensions/) is a capability negotiated by URI on top of the
