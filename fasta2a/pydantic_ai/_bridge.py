@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 try:
     from pydantic_ai import (
+        Agent,
         AudioUrl,
         BinaryContent,
         DocumentUrl,
@@ -21,14 +22,18 @@ try:
         ModelRequestPart,
         ModelResponse,
         ModelResponsePart,
+        PartDeltaEvent,
+        PartStartEvent,
         TextPart,
+        TextPartDelta,
         ThinkingPart,
         ToolCallPart,
         UserPromptPart,
         VideoUrl,
     )
     from pydantic_ai._run_context import AgentDepsT
-    from pydantic_ai.agent import AbstractAgent
+    from pydantic_ai.agent import AbstractAgent, AgentRunResult
+    from pydantic_ai.messages import AgentStreamEvent
     from pydantic_ai.output import OutputDataT
 except ImportError as _e:
     raise ImportError(
@@ -125,15 +130,21 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
         if task['status']['state'] != 'submitted':
             raise ValueError(f'Task {params["id"]} has already been processed (state: {task["status"]["state"]})')
 
-        await self.storage.update_task(task['id'], state='working')
+        task_id = task['id']
+        context_id = task['context_id']
+        await self.storage.update_task(task_id, state='working')
+        await self.publish_status(task_id, context_id, 'working')
 
-        message_history = await self.storage.load_context(task['context_id']) or []
+        message_history = await self.storage.load_context(context_id) or []
         message_history.extend(self.build_message_history(task.get('history', [])))
 
+        # The answer streams as chunks of one artifact while the model writes it; the whole
+        # artifact follows as the last chunk, under the same id.
+        artifact_id = str(uuid.uuid4())
         try:
-            result = await self.agent.run(message_history=message_history)  # type: ignore
+            result, streamed = await self._run_agent(task_id, context_id, artifact_id, message_history)
 
-            await self.storage.update_context(task['context_id'], result.all_messages())
+            await self.storage.update_context(context_id, result.all_messages())
 
             a2a_messages: list[Message] = []
             for message in result.new_messages():
@@ -144,13 +155,46 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
                     a2a_messages.append(Message(role='agent', parts=a2a_parts, message_id=str(uuid.uuid4())))
 
             artifacts = self.build_artifacts(result.output)
+            if streamed and artifacts:
+                artifacts[0]['artifact_id'] = artifact_id
         except Exception:
-            await self.storage.update_task(task['id'], state='failed')
+            await self.storage.update_task(task_id, state='failed')
             raise
         else:
             await self.storage.update_task(
-                task['id'], state='completed', new_artifacts=artifacts, new_messages=a2a_messages
+                task_id, state='completed', new_artifacts=artifacts, new_messages=a2a_messages
             )
+            for artifact in artifacts:
+                await self.publish_artifact(task_id, context_id, artifact)
+
+    async def _run_agent(
+        self, task_id: str, context_id: str, artifact_id: str, message_history: list[ModelMessage]
+    ) -> tuple[AgentRunResult[WorkerOutputT], bool]:
+        """Run the agent, publishing the text it writes as chunks of the answer's artifact.
+
+        Returns the run's result and whether any text was streamed.
+        """
+        streamed = False
+        async with self.agent.iter(message_history=message_history) as run:  # type: ignore
+            async for node in run:
+                if not Agent.is_model_request_node(node):
+                    continue
+                async with node.stream(run.ctx) as request_stream:
+                    async for event in request_stream:
+                        delta = _text_delta(event)
+                        if delta:
+                            streamed = True
+                            await self.publish_artifact(
+                                task_id,
+                                context_id,
+                                Artifact(artifact_id=artifact_id, parts=[Part(text=delta)]),
+                                append=True,
+                                last_chunk=False,
+                            )
+        result = run.result
+        if result is None:  # pragma: no cover - the run has been iterated to its end
+            raise RuntimeError('The agent run ended without a result')
+        return result, streamed
 
     async def cancel_task(self, params: TaskIdParams) -> None:
         pass
@@ -235,3 +279,12 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
             elif isinstance(part, ToolCallPart):
                 pass
         return a2a_parts
+
+
+def _text_delta(event: AgentStreamEvent) -> str | None:
+    """The text a model stream event adds to the answer, if any."""
+    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        return event.part.content or None
+    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+        return event.delta.content_delta or None
+    return None
