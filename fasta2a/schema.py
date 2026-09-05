@@ -503,6 +503,15 @@ TaskState: TypeAlias = Literal[
 ]
 """The possible states of a task."""
 
+STREAM_ENDING_STATES: frozenset[str] = frozenset(
+    {'completed', 'canceled', 'failed', 'rejected', 'input-required', 'auth-required'}
+)
+"""The states at which a task's stream ends: the task is over, or it is waiting on the client.
+
+The status update that carries one of these is the last event of a `message/stream`, and
+`tasks/resubscribe` on such a task has nothing to wait for.
+"""
+
 
 @pydantic.with_config({'alias_generator': to_camel})
 class TaskStatus(TypedDict):

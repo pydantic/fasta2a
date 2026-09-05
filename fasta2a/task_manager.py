@@ -68,6 +68,7 @@ from typing import Any
 
 from .broker import Broker
 from .schema import (
+    STREAM_ENDING_STATES,
     CancelTaskRequest,
     CancelTaskResponse,
     DeleteTaskPushNotificationConfigRequest,
@@ -220,9 +221,8 @@ class TaskManager:
         initial_response = StreamMessageResponse(jsonrpc='2.0', id=request_id, result=StreamResponse(task=task))
         yield self._format_sse_event(initial_response)
 
-        # If task is already in a terminal state, no need to subscribe
-        terminal_states = {'completed', 'canceled', 'failed', 'rejected'}
-        if task['status']['state'] in terminal_states:
+        # A task at one of these states has ended its stream: nothing more to wait for.
+        if task['status']['state'] in STREAM_ENDING_STATES:
             return
 
         async with self.broker.event_bus.subscribe(task_id) as receive_stream:

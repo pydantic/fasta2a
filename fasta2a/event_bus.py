@@ -5,7 +5,7 @@ from __future__ import annotations as _annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import anyio
 import anyio.abc
@@ -60,9 +60,26 @@ class InMemoryEventBus(EventBus):
             await receive_stream.aclose()
 
     async def emit(self, task_id: str, event: StreamResponse) -> None:
-        """Emit an event to all subscribers for a task."""
-        for send_stream in self._subscribers.get(task_id, []):
-            await send_stream.send(event)
+        """Emit an event to all subscribers for a task.
+
+        A subscriber whose connection is gone is dropped, rather than left to break the worker
+        publishing to it.
+        """
+        subscribers = self._subscribers.get(task_id)
+        if not subscribers:
+            return
+        for send_stream in list(subscribers):
+            try:
+                await send_stream.send(event)
+            except (anyio.BrokenResourceError, anyio.ClosedResourceError):
+                if send_stream in subscribers:
+                    subscribers.remove(send_stream)
+                # Closed as well as dropped, so nothing lingers until the subscription exits;
+                # closing what is already broken must not raise either.
+                with suppress(Exception):
+                    await send_stream.aclose()
+        if not subscribers:
+            self._subscribers.pop(task_id, None)
 
     async def close(self, task_id: str) -> None:
         """Close all subscriber streams for a task, signaling end of SSE."""
