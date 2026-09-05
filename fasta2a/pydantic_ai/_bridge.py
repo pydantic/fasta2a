@@ -197,15 +197,18 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
         self, task_id: str, context_id: str, artifact_id: str, message_history: list[ModelMessage]
     ) -> tuple[AgentRunResult[WorkerOutputT], bool]:
         streamed = False
-        entered = False
+        # Whether the run got anywhere: an event received, or a stream completed.
+        # A model that cannot stream refuses before either — on entering the
+        # stream in some releases, on its first read in others.
+        progressed = False
         try:
             async with self.agent.iter(message_history=message_history) as run:  # type: ignore
                 async for node in run:
                     if not Agent.is_model_request_node(node):
                         continue
                     async with node.stream(run.ctx) as request_stream:
-                        entered = True
                         async for event in request_stream:
+                            progressed = True
                             delta = _text_delta(event)
                             if delta:
                                 streamed = True
@@ -216,11 +219,12 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
                                     append=True,
                                     last_chunk=False,
                                 )
+                    progressed = True
         except (NotImplementedError, AssertionError) as exc:
             # `Model.request_stream` raises NotImplementedError when a model does
-            # not stream, and FunctionModel asserts; both on entering the first
-            # stream, before a request is made. Anything later is a real error.
-            if entered:
+            # not stream, and FunctionModel asserts — before any request is made.
+            # The same errors once the run has progressed are real ones.
+            if progressed:
                 raise
             raise _CannotStream() from exc
         self._streaming = True
