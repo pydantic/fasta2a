@@ -128,8 +128,7 @@ _You can run this example as is with `uvicorn main:app --reload`._
 As you see, it's pretty easy from the point of view of the developer using your agentic framework.
 
 > [!NOTE]
-> In Pydantic AI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
-> warning pointing here. It will be removed in Pydantic AI v2.
+> The bridge requires Pydantic AI 2. `Agent.to_a2a()` was removed there; `agent_to_a2a` is its replacement.
 
 #### Streaming
 

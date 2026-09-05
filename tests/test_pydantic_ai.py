@@ -28,7 +28,7 @@ import pytest
 from asgi_lifespan import LifespanManager
 from inline_snapshot import snapshot
 
-pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)')
+pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)', exc_type=ModuleNotFoundError)
 
 # `dirty_equals` matchers (`IsStr`, `IsDatetime`, `IsNow`) report `__eq__`-based equivalence but pyright
 # can't see they're meant to substitute for `str`/`datetime` in equality contexts. Mirror the stubs trick

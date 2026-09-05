@@ -10,7 +10,7 @@ import httpx
 import pytest
 from asgi_lifespan import LifespanManager
 
-pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)')
+pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)', exc_type=ModuleNotFoundError)
 
 from pydantic_ai import Agent, ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
