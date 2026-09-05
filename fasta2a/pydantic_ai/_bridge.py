@@ -4,7 +4,7 @@ import base64
 import uuid
 from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Generic, TypeVar
 
@@ -116,11 +116,17 @@ def agent_to_a2a(
     )
 
 
+class _CannotStream(Exception):
+    """The model refused a streamed request before anything had happened."""
+
+
 @dataclass
 class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]):
     """A worker that uses a pydantic-ai agent to execute tasks."""
 
     agent: AbstractAgent[AgentDepsT, WorkerOutputT]
+    _streaming: bool | None = field(default=None, init=False, repr=False)
+    """Whether the agent's model streams: unknown until the first task tries."""
 
     async def run_task(self, params: TaskSendParams) -> None:
         task = await self.storage.load_task(params['id'])
@@ -172,25 +178,52 @@ class AgentWorker(Worker[list[ModelMessage]], Generic[WorkerOutputT, AgentDepsT]
     ) -> tuple[AgentRunResult[WorkerOutputT], bool]:
         """Run the agent, publishing the text it writes as chunks of the answer's artifact.
 
+        The run is streamed when the model streams. A model that does not — a
+        `FunctionModel` without a `stream_function`, say — refuses on its first
+        request, before anything has happened; the run is then done again without
+        streaming, and that is remembered so the next task does not try.
+
         Returns the run's result and whether any text was streamed.
         """
+        if self._streaming is not False:
+            try:
+                return await self._run_agent_streaming(task_id, context_id, artifact_id, message_history)
+            except _CannotStream:
+                self._streaming = False
+        result = await self.agent.run(message_history=message_history)  # type: ignore
+        return result, False
+
+    async def _run_agent_streaming(
+        self, task_id: str, context_id: str, artifact_id: str, message_history: list[ModelMessage]
+    ) -> tuple[AgentRunResult[WorkerOutputT], bool]:
         streamed = False
-        async with self.agent.iter(message_history=message_history) as run:  # type: ignore
-            async for node in run:
-                if not Agent.is_model_request_node(node):
-                    continue
-                async with node.stream(run.ctx) as request_stream:
-                    async for event in request_stream:
-                        delta = _text_delta(event)
-                        if delta:
-                            streamed = True
-                            await self.publish_artifact(
-                                task_id,
-                                context_id,
-                                Artifact(artifact_id=artifact_id, parts=[Part(text=delta)]),
-                                append=True,
-                                last_chunk=False,
-                            )
+        entered = False
+        try:
+            async with self.agent.iter(message_history=message_history) as run:  # type: ignore
+                async for node in run:
+                    if not Agent.is_model_request_node(node):
+                        continue
+                    async with node.stream(run.ctx) as request_stream:
+                        entered = True
+                        async for event in request_stream:
+                            delta = _text_delta(event)
+                            if delta:
+                                streamed = True
+                                await self.publish_artifact(
+                                    task_id,
+                                    context_id,
+                                    Artifact(artifact_id=artifact_id, parts=[Part(text=delta)]),
+                                    append=True,
+                                    last_chunk=False,
+                                )
+        except (NotImplementedError, AssertionError) as exc:
+            # `Model.request_stream` raises NotImplementedError when a model does
+            # not stream, and FunctionModel asserts; both on entering the first
+            # stream, before a request is made. Anything later is a real error.
+            if entered:
+                raise
+            raise _CannotStream() from exc
+        self._streaming = True
         result = run.result
         if result is None:  # pragma: no cover - the run has been iterated to its end
             raise RuntimeError('The agent run ended without a result')
