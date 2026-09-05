@@ -10,6 +10,7 @@ import anyio
 from opentelemetry.trace import get_tracer, use_span
 from typing_extensions import assert_never
 
+from .schema import STREAM_ENDING_STATES
 from .storage import ContextT, Storage
 
 if TYPE_CHECKING:
@@ -17,11 +18,6 @@ if TYPE_CHECKING:
     from .schema import Artifact, Message, TaskIdParams, TaskSendParams, TaskState
 
 tracer = get_tracer(__name__)
-
-STREAM_ENDING_STATES: frozenset[str] = frozenset(
-    {'completed', 'canceled', 'failed', 'rejected', 'input-required', 'auth-required'}
-)
-"""The states a task's stream ends at: the task is over, or it is waiting on the client."""
 
 
 @dataclass

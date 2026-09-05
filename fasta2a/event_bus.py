@@ -5,7 +5,7 @@ from __future__ import annotations as _annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import anyio
 import anyio.abc
@@ -74,6 +74,10 @@ class InMemoryEventBus(EventBus):
             except (anyio.BrokenResourceError, anyio.ClosedResourceError):
                 if send_stream in subscribers:
                     subscribers.remove(send_stream)
+                # Closed as well as dropped, so nothing lingers until the subscription exits;
+                # closing what is already broken must not raise either.
+                with suppress(Exception):
+                    await send_stream.aclose()
         if not subscribers:
             self._subscribers.pop(task_id, None)
 
