@@ -131,6 +131,44 @@ As you see, it's pretty easy from the point of view of the developer using your 
 > In Pydantic AI 1.x, `Agent.to_a2a()` continues to work but emits a deprecation
 > warning pointing here. It will be removed in Pydantic AI v2.
 
+## Extensions
+
+An [extension](https://a2a-protocol.org/latest/topics/extensions/) is a capability negotiated by URI on top of the
+core protocol. The agent declares the ones it supports in its card, a client asks for some of them in the
+`A2A-Extensions` request header, and the agent answers on the same header with the ones it activated.
+
+Declare them on the application (or pass `extensions=` to `agent_to_a2a`):
+
+```python
+from fasta2a import AgentExtension, FastA2A
+
+app = FastA2A(
+    storage=storage,
+    broker=broker,
+    extensions=[
+        AgentExtension(uri='https://example.com/ext/citations/v1', description='Cites its sources'),
+        AgentExtension(uri='https://example.com/ext/trace/v1', required=True),
+    ],
+)
+```
+
+For every request, **FastA2A** activates the requested extensions it supports — a URI it never declared is
+ignored and not echoed back, which is how the client learns that — and puts the activated list in the message
+`metadata`, so a `Worker` can read what was agreed for the task it is running:
+
+```python
+from fasta2a import activated_extensions
+
+
+class MyWorker(Worker[Context]):
+    async def run_task(self, params: TaskSendParams) -> None:
+        if 'https://example.com/ext/citations/v1' in activated_extensions(params):
+            ...  # add citation parts to the artifacts
+```
+
+A `message/send` or `message/stream` that leaves a `required` extension inactive is refused with a
+`-32600` error whose `data.missing_required_extensions` names it, before any task is created.
+
 ## Design
 
 **FastA2A** is built on top of [Starlette](https://www.starlette.io/), which means it's fully compatible

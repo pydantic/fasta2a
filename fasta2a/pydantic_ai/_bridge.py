@@ -43,6 +43,7 @@ from starlette.types import ExceptionHandler, Lifespan
 from fasta2a.applications import FastA2A
 from fasta2a.broker import Broker, InMemoryBroker
 from fasta2a.schema import (
+    AgentExtension,
     AgentProvider,
     Artifact,
     Message,
@@ -78,6 +79,7 @@ def agent_to_a2a(
     description: str | None = None,
     provider: AgentProvider | None = None,
     skills: list[Skill] | None = None,
+    extensions: list[AgentExtension] | None = None,
     debug: bool = False,
     routes: Sequence[Route] | None = None,
     middleware: Sequence[Middleware] | None = None,
@@ -100,6 +102,7 @@ def agent_to_a2a(
         description=description,
         provider=provider,
         skills=skills,
+        extensions=extensions,
         debug=debug,
         routes=routes,
         middleware=middleware,
