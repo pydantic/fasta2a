@@ -124,6 +124,8 @@ def test_activation_is_the_intersection_in_the_clients_order():
 
 def test_activated_extensions_reads_the_metadata_key():
     assert activated_extensions({}) == []
+    assert activated_extensions({'metadata': None}) == []
+    assert activated_extensions({'metadata': 'not-a-mapping'}) == []
     assert activated_extensions({'metadata': {ACTIVATED_EXTENSIONS_KEY: 'not-a-list'}}) == []
     assert activated_extensions({'metadata': {ACTIVATED_EXTENSIONS_KEY: [TRACE]}}) == [TRACE]
 
@@ -185,13 +187,15 @@ async def test_a_required_extension_left_inactive_is_refused_before_a_task_exist
 
 async def test_a_stream_echoes_the_activated_extensions():
     app, worker = build_app([AgentExtension(uri=TRACE)])
-    async with client_for(app) as client:
-        async with client.stream(
+    async with (
+        client_for(app) as client,
+        client.stream(
             'POST', '/', json=send_message_request('message/stream'), headers={A2A_EXTENSIONS_HEADER: TRACE}
-        ) as response:
-            assert response.status_code == 200
-            assert response.headers[A2A_EXTENSIONS_HEADER] == TRACE
-            events = [line async for line in response.aiter_lines() if line.startswith('data: ')]
+        ) as response,
+    ):
+        assert response.status_code == 200
+        assert response.headers[A2A_EXTENSIONS_HEADER] == TRACE
+        events = [line async for line in response.aiter_lines() if line.startswith('data: ')]
     assert events, 'the stream sent nothing'
     assert worker.seen == [[TRACE]]
 

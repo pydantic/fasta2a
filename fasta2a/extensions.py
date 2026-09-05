@@ -14,7 +14,7 @@ negotiating; a `Worker` reads the outcome with `activated_extensions`.
 from __future__ import annotations as _annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, cast
 
 from .schema import AgentExtension
 
@@ -79,8 +79,10 @@ def activated_extensions(params: Mapping[str, Any]) -> list[str]:
     `FastA2A` records them — so a worker asks this of the params it was handed
     and gets what the client and the agent agreed on for that message.
     """
-    metadata = params.get('metadata') or {}
-    value = metadata.get(ACTIVATED_EXTENSIONS_KEY)
+    metadata = params.get('metadata')
+    if not isinstance(metadata, Mapping):
+        return []
+    value: object = cast('Mapping[str, object]', metadata).get(ACTIVATED_EXTENSIONS_KEY)
     if not isinstance(value, list):
         return []
-    return [str(uri) for uri in value]
+    return [str(uri) for uri in cast('list[object]', value)]

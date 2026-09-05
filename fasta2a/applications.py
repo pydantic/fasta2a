@@ -168,7 +168,9 @@ class FastA2A(Starlette):
         # metadata so the worker sees what was agreed.
         activated = self._negotiate_extensions(request)
         headers = {A2A_EXTENSIONS_HEADER: format_extensions_header(activated)} if activated else {}
-        if a2a_request['method'] in ('message/send', 'message/stream'):
+        # Two comparisons rather than `in`: that is what narrows the request
+        # union to the two whose params carry a message and its metadata.
+        if a2a_request['method'] == 'message/send' or a2a_request['method'] == 'message/stream':
             missing = missing_required_extensions(self.extensions, activated)
             if missing:
                 error_response = SendMessageResponse(
