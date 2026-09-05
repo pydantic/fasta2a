@@ -137,6 +137,9 @@ class TaskManager:
         history_length = config.get('history_length')
         if history_length is not None:
             broker_params['history_length'] = history_length
+        metadata = request['params'].get('metadata')
+        if metadata:
+            broker_params['metadata'] = metadata
 
         await self.broker.run_task(broker_params)
         result = SendMessageResult(task=task)
@@ -183,6 +186,9 @@ class TaskManager:
         history_length = config.get('history_length')
         if history_length is not None:
             broker_params['history_length'] = history_length
+        metadata = request['params'].get('metadata')
+        if metadata:
+            broker_params['metadata'] = metadata
 
         async with self.broker.event_bus.subscribe(task_id) as receive_stream:
             await self.broker.run_task(broker_params)
