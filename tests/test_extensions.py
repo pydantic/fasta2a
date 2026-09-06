@@ -210,7 +210,12 @@ async def test_tasks_get_is_not_gated_by_required_extensions():
 
 
 def test_agent_to_a2a_forwards_extensions():
-    pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)')
+    try:
+        import pydantic_ai  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    except ModuleNotFoundError as e:
+        if e.name == 'pydantic_ai':
+            pytest.skip('pydantic-ai-slim required (Python 3.10+)')
+        raise
     from pydantic_ai import Agent
     from pydantic_ai.models.test import TestModel
 

@@ -1,9 +1,8 @@
 """Pydantic AI bridge for FastA2A.
 
-Port of `pydantic_ai._a2a` into the FastA2A package, so users can keep using
-`Agent.to_a2a()` after the corresponding wrapper is removed from pydantic-ai
-in v2. See https://github.com/pydantic/pydantic-ai for the upstream
-deprecation context.
+Port of `pydantic_ai._a2a` into the FastA2A package: Pydantic AI 2 removed
+`Agent.to_a2a()`, and `agent_to_a2a` here is its replacement. See
+https://github.com/pydantic/pydantic-ai for the upstream context.
 
 Usage:
 

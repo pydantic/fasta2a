@@ -28,7 +28,14 @@ import pytest
 from asgi_lifespan import LifespanManager
 from inline_snapshot import snapshot
 
-pytest.importorskip('pydantic_ai', reason='pydantic-ai-slim required (Python 3.10+)')
+try:
+    import pydantic_ai  # noqa: F401  # pyright: ignore[reportUnusedImport]
+except ModuleNotFoundError as e:
+    # Skip only when pydantic-ai itself is absent (Python 3.9, where the extra
+    # does not install); a module missing *under* it is a broken environment.
+    if e.name == 'pydantic_ai':
+        pytest.skip('pydantic-ai-slim required (Python 3.10+)', allow_module_level=True)
+    raise
 
 # `dirty_equals` matchers (`IsStr`, `IsDatetime`, `IsNow`) report `__eq__`-based equivalence but pyright
 # can't see they're meant to substitute for `str`/`datetime` in equality contexts. Mirror the stubs trick
