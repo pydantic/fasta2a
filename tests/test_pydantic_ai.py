@@ -29,7 +29,7 @@ from asgi_lifespan import LifespanManager
 from inline_snapshot import snapshot
 
 try:
-    import pydantic_ai  # noqa: F401
+    import pydantic_ai  # noqa: F401  # pyright: ignore[reportUnusedImport]
 except ModuleNotFoundError as e:
     # Skip only when pydantic-ai itself is absent (Python 3.9, where the extra
     # does not install); a module missing *under* it is a broken environment.
